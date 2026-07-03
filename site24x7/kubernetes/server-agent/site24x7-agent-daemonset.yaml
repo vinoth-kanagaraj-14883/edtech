@@ -59,6 +59,12 @@ spec:
         - name: host-root
           hostPath:
             path: /
+        # Docker socket — used for container-level monitoring.
+        # If your cluster uses containerd (common in EKS, GKE, AKS), the socket path
+        # may differ. Alternatives:
+        #   containerd: /run/containerd/containerd.sock
+        #   CRI-O:      /var/run/crio/crio.sock
+        # Update both the volumeMount path above and the hostPath below to match your runtime.
         - name: docker-sock
           hostPath:
             path: /var/run/docker.sock

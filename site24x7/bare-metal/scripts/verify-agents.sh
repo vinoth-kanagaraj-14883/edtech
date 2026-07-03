@@ -56,6 +56,10 @@ while IFS= read -r line; do
     [[ "${host}" =~ ^ansible_ ]] && continue
 
     # SSH checks (with timeout)
+    # Note: StrictHostKeyChecking=no is used here because this is a verification/diagnostic
+    # script intended to run in trusted internal network environments where host keys may
+    # not be pre-populated in known_hosts. In production environments, consider using
+    # -o StrictHostKeyChecking=yes with a pre-populated known_hosts file for security.
     SERVER_STATUS="✗ not found"
     APM_STATUS="✗ not found"
     OVERALL="FAIL"

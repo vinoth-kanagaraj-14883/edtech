@@ -19,6 +19,10 @@
   when: not agent_binary.stat.exists
 
 - name: Install Site24x7 server monitoring agent
+  # Security note: The Site24x7 installer requires -key as a CLI argument (its API design).
+  # The device_key value comes from ansible-vault encrypted vars (group_vars/site24x7.yml).
+  # Ansible masks vault-encrypted values in logs. For additional security, consider using
+  # 'no_log: true' on this task to prevent the key from appearing in Ansible output.
   command: >
     bash {{ tmp_dir.path }}/Site24x7_Linux_64bit.install
     -i -key={{ site24x7_device_key }}
@@ -26,6 +30,7 @@
     -proxy-server={{ site24x7_proxy_host }}:{{ site24x7_proxy_port }}
     {% endif %}
   when: not agent_binary.stat.exists
+  no_log: true
   notify: Restart site24x7 agent
 
 - name: Remove temporary installer files

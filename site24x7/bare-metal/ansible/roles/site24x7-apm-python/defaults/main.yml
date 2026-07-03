@@ -5,3 +5,6 @@ site24x7_install_dir: "/opt/site24x7"
 site24x7_log_level: "info"
 site24x7_service_name: "edtech-user-service"
 site24x7_pip_executable: "pip3"
+# Path to requirements file — defaults to the one shipped alongside this role.
+# Override to point at a custom requirements file with pinned versions.
+site24x7_python_requirements_file: "{{ role_path }}/../../../../../kubernetes/apm-agent/python/requirements-site24x7.txt"

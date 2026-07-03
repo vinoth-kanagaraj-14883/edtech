@@ -1,15 +1,9 @@
 ---
-- name: Install site24x7-apm Python package
+- name: Install site24x7-apm Python package and dependencies
+  # Packages are installed from requirements-site24x7.txt which pins minimum versions.
+  # This ensures reproducible deployments. To upgrade, update requirements-site24x7.txt.
   pip:
-    name:
-      - site24x7-apm
-      - opentelemetry-api
-      - opentelemetry-sdk
-      - opentelemetry-exporter-otlp-proto-grpc
-      - opentelemetry-instrumentation-fastapi
-      - opentelemetry-instrumentation-sqlalchemy
-      - opentelemetry-instrumentation-httpx
-      - opentelemetry-instrumentation-redis
+    requirements: "{{ site24x7_python_requirements_file }}"
     state: present
     executable: "{{ site24x7_pip_executable }}"
 

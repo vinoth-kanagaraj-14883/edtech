@@ -9,7 +9,12 @@
 set -euo pipefail
 
 INSTALL_DIR="${1:-/opt/site24x7}"
+# Site24x7 currently distributes a single JAR at the URL below (no versioned URLs).
+# Set SITE24X7_JAVA_APM_VERSION for informational display only.
 AGENT_VERSION="${SITE24X7_JAVA_APM_VERSION:-latest}"
+# Note: Site24x7 does not expose versioned download URLs; 'latest' is always downloaded.
+# If you need a specific version, download manually from the Site24x7 portal and place it
+# at INSTALL_DIR/apm-agent.jar before running this script.
 DOWNLOAD_URL="https://staticdownloads.site24x7.com/APM/Java/site24x7-java-agent.jar"
 
 echo "[site24x7] Downloading Java APM agent..."
