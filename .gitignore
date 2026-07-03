@@ -1,0 +1,76 @@
+# Dependencies
+node_modules/
+vendor/
+
+# Build artifacts
+dist/
+build/
+target/
+*.jar
+*.war
+*.class
+
+# Go binaries
+api-gateway/api-gateway
+notification-service/notification-service
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+.venv/
+venv/
+env/
+.env
+*.env
+
+# Java
+*.class
+*.jar
+*.war
+*.ear
+
+# Ruby
+.bundle/
+*.gem
+
+# Next.js
+.next/
+out/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Docker
+.dockerignore
+
+# Terraform
+*.tfstate
+*.tfstate.backup
+.terraform/
+
+# Secrets (keep .env.example)
+.env
+.env.local
+.env.*.local
+
+# Test coverage
+coverage/
+.coverage
+htmlcov/
+
+# Temporary files
+tmp/
+temp/

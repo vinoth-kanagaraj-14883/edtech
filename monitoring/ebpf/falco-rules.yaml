@@ -1,0 +1,49 @@
+- list: edtech_sensitive_files
+  items:
+    - /etc/shadow
+    - /etc/passwd
+    - /root/.ssh
+    - /run/secrets
+    - /var/lib/kubelet
+
+- list: edtech_expected_network_processes
+  items:
+    - java
+    - node
+    - python
+    - python3
+    - gunicorn
+    - uvicorn
+    - nginx
+    - redis-server
+    - postgres
+    - mysqld
+
+- macro: edtech_container
+  condition: container and container.image.repository in (api-gateway, user-service, course-service, content-service, quiz-service, notification-service, frontend)
+
+- rule: EdTech Shell Spawned in Container
+  desc: Detect an interactive shell launched inside an EdTech application container.
+  condition: edtech_container and proc.name in (bash, sh, zsh, dash)
+  output: >-
+    Shell spawned inside EdTech container (user=%user.name command=%proc.cmdline container=%container.name image=%container.image.repository)
+  priority: WARNING
+  tags: [container, edtech, shell]
+
+- rule: EdTech Sensitive File Access
+  desc: Detect reads or writes to sensitive files from EdTech containers.
+  condition: >-
+    edtech_container and evt.type in (open, openat, openat2) and fd.name in (edtech_sensitive_files)
+  output: >-
+    Sensitive file accessed from EdTech container (user=%user.name file=%fd.name command=%proc.cmdline container=%container.name)
+  priority: CRITICAL
+  tags: [container, edtech, filesystem]
+
+- rule: EdTech Unexpected Outbound Network Activity
+  desc: Detect outbound network connections from unexpected processes running in EdTech containers.
+  condition: >-
+    edtech_container and evt.type=connect and fd.typechar=4 and not proc.name in (edtech_expected_network_processes)
+  output: >-
+    Unexpected outbound network activity from EdTech container (proc=%proc.name command=%proc.cmdline connection=%fd.name container=%container.name)
+  priority: WARNING
+  tags: [container, edtech, network]

@@ -1,0 +1,21 @@
+namespace: edtech
+resources:
+  - ../../base
+replicas:
+  - name: api-gateway
+    count: 2
+  - name: user-service
+    count: 2
+  - name: course-service
+    count: 2
+  - name: content-service
+    count: 2
+  - name: quiz-service
+    count: 2
+  - name: notification-service
+    count: 2
+  - name: frontend
+    count: 2
+labels:
+  - pairs:
+      environment: staging

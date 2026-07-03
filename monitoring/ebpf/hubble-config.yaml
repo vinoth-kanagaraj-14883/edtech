@@ -1,0 +1,33 @@
+hubble:
+  enabled: true
+  metrics:
+    enabled:
+      - dns:query;ignoreAAAA
+      - drop
+      - flow
+      - http
+      - icmp
+      - port-distribution
+      - tcp
+    serviceMonitor:
+      enabled: true
+      interval: 15s
+  relay:
+    enabled: true
+    rollOutPods: true
+    service:
+      type: ClusterIP
+    prometheus:
+      enabled: true
+      serviceMonitor:
+        enabled: true
+  ui:
+    enabled: true
+    ingress:
+      enabled: false
+cilium:
+  monitorAggregation: medium
+  flowLogs:
+    enabled: true
+  bpf:
+    monitorAggregation: medium

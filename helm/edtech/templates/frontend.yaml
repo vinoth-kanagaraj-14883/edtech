@@ -1,0 +1,51 @@
+{{- if .Values.frontend.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend
+  labels:
+    {{- include "edtech.serviceLabels" (dict "context" . "name" "frontend") | nindent 4 }}
+spec:
+  replicas: {{ .Values.frontend.replicas }}
+  selector:
+    matchLabels:
+      {{- include "edtech.selectorLabels" (dict "Release" .Release "name" "frontend") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "edtech.selectorLabels" (dict "Release" .Release "name" "frontend") | nindent 8 }}
+    spec:
+      containers:
+        - name: frontend
+          image: "{{ .Values.frontend.image.repository }}:{{ .Values.frontend.image.tag }}"
+          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          ports:
+            - containerPort: {{ .Values.frontend.containerPort }}
+          env:
+            {{- include "edtech.renderEnv" .Values.frontend.env | nindent 20 }}
+          resources:
+            {{- toYaml .Values.frontend.resources | nindent 20 }}
+          livenessProbe:
+            httpGet:
+              path: {{ .Values.frontend.probes.liveness.path }}
+              port: {{ .Values.frontend.containerPort }}
+          readinessProbe:
+            httpGet:
+              path: {{ .Values.frontend.probes.readiness.path }}
+              port: {{ .Values.frontend.containerPort }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend
+  labels:
+    {{- include "edtech.serviceLabels" (dict "context" . "name" "frontend") | nindent 4 }}
+spec:
+  type: {{ .Values.frontend.service.type }}
+  selector:
+    {{- include "edtech.selectorLabels" (dict "Release" .Release "name" "frontend") | nindent 4 }}
+  ports:
+    - name: http
+      port: {{ .Values.frontend.service.port }}
+      targetPort: {{ .Values.frontend.containerPort }}
+{{- end }}

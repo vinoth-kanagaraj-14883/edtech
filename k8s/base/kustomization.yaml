@@ -1,0 +1,29 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - namespaces.yaml
+  - serviceaccounts/serviceaccounts.yaml
+  - rbac/rbac.yaml
+  - configmaps/app-config.yaml
+  - secrets/app-secrets.yaml
+  - databases/postgresql-statefulset.yaml
+  - databases/mysql-statefulset.yaml
+  - databases/redis-statefulset.yaml
+  - services/api-gateway-deployment.yaml
+  - services/user-service-deployment.yaml
+  - services/course-service-deployment.yaml
+  - services/content-service-deployment.yaml
+  - services/quiz-service-deployment.yaml
+  - services/notification-service-deployment.yaml
+  - services/frontend-deployment.yaml
+  - monitoring/otel-collector-deployment.yaml
+  - monitoring/prometheus-deployment.yaml
+  - monitoring/grafana-deployment.yaml
+  - monitoring/jaeger-deployment.yaml
+  - monitoring/loki-deployment.yaml
+  - monitoring/node-exporter-daemonset.yaml
+  - monitoring/kube-state-metrics-deployment.yaml
+  - ingress/ingress.yaml
+  - hpa/hpa.yaml
+  - poddisruptionbudgets/pdb.yaml
+  - networkpolicies/networkpolicy.yaml

@@ -1,0 +1,76 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: api-gateway
+  namespace: edtech
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: api-gateway
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: user-service
+  namespace: edtech
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: user-service
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: course-service
+  namespace: edtech
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: course-service
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: content-service
+  namespace: edtech
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: content-service
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: quiz-service
+  namespace: edtech
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: quiz-service
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: notification-service
+  namespace: edtech
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: notification-service
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: frontend
+  namespace: edtech
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: frontend

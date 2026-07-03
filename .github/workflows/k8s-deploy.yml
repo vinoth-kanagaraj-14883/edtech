@@ -1,0 +1,34 @@
+name: Kubernetes Deploy
+
+on:
+  push:
+    branches: [main]
+  release:
+    types: [published]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      ENVIRONMENT: ${{ github.event_name == 'release' && 'production' || 'staging' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-kubectl@v4
+        with:
+          version: 'v1.30.3'
+      - name: Configure kubeconfig
+        shell: bash
+        env:
+          KUBECONFIG_B64: ${{ github.event_name == 'release' && secrets.KUBECONFIG_PRODUCTION || secrets.KUBECONFIG_STAGING }}
+        run: |
+          mkdir -p "$HOME/.kube"
+          echo "$KUBECONFIG_B64" | base64 -d > "$HOME/.kube/config"
+      - name: Deploy with kustomize
+        run: |
+          kubectl apply -f k8s/namespaces.yaml
+          kubectl apply -k k8s/overlays/${ENVIRONMENT}
+      - name: Verify rollout
+        run: |
+          kubectl rollout status deployment/api-gateway -n edtech --timeout=180s
+          kubectl rollout status deployment/user-service -n edtech --timeout=180s
+          kubectl get pods -n edtech
