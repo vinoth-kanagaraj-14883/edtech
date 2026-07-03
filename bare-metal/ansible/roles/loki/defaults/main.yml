@@ -1,0 +1,2 @@
+loki_bin: /usr/local/bin/loki
+loki_config: /etc/loki/config.yml

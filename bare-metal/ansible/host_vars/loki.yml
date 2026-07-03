@@ -1,0 +1,2 @@
+service_name: loki
+service_port: 3100

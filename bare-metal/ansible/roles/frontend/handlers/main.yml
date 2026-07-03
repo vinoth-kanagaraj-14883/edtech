@@ -1,0 +1,14 @@
+---
+- name: Restart frontend
+  ansible.builtin.systemd:
+    name: frontend
+    state: restarted
+    enabled: true
+    daemon_reload: true
+
+- name: Restart nginx
+  ansible.builtin.systemd:
+    name: nginx
+    state: restarted
+    enabled: true
+    daemon_reload: true

@@ -1,0 +1,28 @@
+[Unit]
+Description=EdTech Course Service
+After=network.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User={{ app_user }}
+Group={{ app_group }}
+WorkingDirectory={{ service_dir }}/repo/course-service
+EnvironmentFile={{ service_dir }}/.env
+ExecStart=/usr/bin/java -jar {{ service_dir }}/course-service.jar
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=always
+RestartSec=5s
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=course-service
+TimeoutStopSec=30s
+KillMode=mixed
+KillSignal=SIGTERM
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ReadWritePaths={{ service_dir }} {{ log_dir }}
+
+[Install]
+WantedBy=multi-user.target

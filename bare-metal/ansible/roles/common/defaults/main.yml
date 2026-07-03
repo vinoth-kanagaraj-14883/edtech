@@ -1,0 +1,14 @@
+common_packages:
+  - curl
+  - git
+  - ufw
+  - fail2ban
+  - ca-certificates
+  - gnupg
+  - lsb-release
+  - logrotate
+  - unzip
+sysctl_tuning:
+  net.core.somaxconn: 1024
+  net.ipv4.tcp_fin_timeout: 15
+  vm.swappiness: 10

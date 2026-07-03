@@ -1,0 +1,86 @@
+---
+- name: Install course-service runtime packages
+  ansible.builtin.apt:
+    name: [openjdk-17-jdk, maven, git]
+    state: present
+    update_cache: true
+  tags: ["install"]
+
+- name: Create course-service directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ app_user }}"
+    group: "{{ app_group }}"
+    mode: "0755"
+  loop: ["{{ service_dir }}", "{{ service_dir }}/repo"]
+  tags: ["install"]
+
+- name: Checkout source repository
+  ansible.builtin.git:
+    repo: "{{ repo_url }}"
+    dest: "{{ service_dir }}/repo"
+    version: "{{ repo_branch }}"
+    force: true
+  become_user: "{{ app_user }}"
+  tags: ["install", "update"]
+
+- name: Build course-service jar
+  ansible.builtin.command: mvn clean package -DskipTests
+  args:
+    chdir: "{{ service_dir }}/repo/{{ repo_subdir }}"
+  become_user: "{{ app_user }}"
+  changed_when: false
+  tags: ["install", "update"]
+
+- name: Copy course-service jar to fixed path
+  ansible.builtin.shell: |
+    set -euo pipefail
+    jar_file="$(find target -maxdepth 1 -type f -name '*.jar' ! -name 'original-*' | head -n1)"
+    test -n "${jar_file}"
+    cp "${jar_file}" {{ service_dir }}/course-service.jar
+  args:
+    chdir: "{{ service_dir }}/repo/{{ repo_subdir }}"
+  become_user: "{{ app_user }}"
+  changed_when: false
+  tags: ["install", "update"]
+
+- name: Render course-service env
+  ansible.builtin.template:
+    src: course-service.env.j2
+    dest: "{{ service_dir }}/.env"
+    owner: "{{ app_user }}"
+    group: "{{ app_group }}"
+    mode: "0640"
+  notify: Restart course-service
+  tags: ["configure"]
+
+- name: Render course-service unit
+  ansible.builtin.template:
+    src: course-service.service.j2
+    dest: /etc/systemd/system/course-service.service
+    mode: "0644"
+  notify: Restart course-service
+  tags: ["configure"]
+
+- name: Render course-service logrotate
+  ansible.builtin.template:
+    src: course-service.logrotate.j2
+    dest: /etc/logrotate.d/course-service
+    mode: "0644"
+  tags: ["configure"]
+
+- name: Allow course-service port from api-gateway
+  community.general.ufw:
+    rule: allow
+    proto: tcp
+    port: "8002"
+    from_ip: "{{ api_gateway_host }}"
+  tags: ["configure"]
+
+- name: Enable course-service
+  ansible.builtin.systemd:
+    name: course-service
+    state: started
+    enabled: true
+  tags: ["restart"]

@@ -1,0 +1,12 @@
+[Unit]
+Description=OpenTelemetry Collector
+After=network.target
+
+[Service]
+Type=simple
+ExecStart={{ otel_collector_bin }} --config={{ otel_collector_config }}
+Restart=always
+RestartSec=5s
+
+[Install]
+WantedBy=multi-user.target

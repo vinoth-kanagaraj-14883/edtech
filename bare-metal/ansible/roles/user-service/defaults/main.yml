@@ -1,0 +1,2 @@
+service_dir: "{{ app_base_dir }}/user-service"
+repo_subdir: user-service

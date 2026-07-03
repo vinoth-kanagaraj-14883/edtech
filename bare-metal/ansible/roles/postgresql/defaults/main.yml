@@ -1,0 +1,9 @@
+postgresql_version: "15"
+postgresql_listen_address: "0.0.0.0"
+postgresql_max_connections: 300
+postgresql_shared_buffers: "1GB"
+postgresql_work_mem: "16MB"
+postgresql_maintenance_work_mem: "256MB"
+postgresql_effective_cache_size: "4GB"
+postgresql_exporter_user: postgres_exporter
+postgresql_exporter_bin: /usr/local/bin/postgres_exporter

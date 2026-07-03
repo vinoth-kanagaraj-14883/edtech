@@ -1,0 +1,14 @@
+[Unit]
+Description=Promtail Service
+After=network.target
+
+[Service]
+Type=simple
+User={{ promtail_user }}
+Group={{ promtail_group }}
+ExecStart={{ promtail_bin }} -config.file=/etc/promtail/config.yml
+Restart=always
+RestartSec=5s
+
+[Install]
+WantedBy=multi-user.target

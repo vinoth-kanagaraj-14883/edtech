@@ -1,0 +1,10 @@
+service_ports:
+  api-gateway: 8080
+  user-service: 8001
+  course-service: 8002
+  content-service: 8003
+  quiz-service: 8004
+  notification-service: 8005
+  frontend: 3000
+
+jwt_secret: "{{ vault_jwt_secret }}"

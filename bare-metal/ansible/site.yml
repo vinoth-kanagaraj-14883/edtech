@@ -1,0 +1,98 @@
+---
+- name: Baseline all hosts
+  hosts: edtech
+  become: true
+  roles:
+    - { role: common, tags: ["install", "configure"] }
+    - { role: node-exporter, tags: ["install", "configure", "restart"] }
+    - { role: promtail, tags: ["install", "configure", "restart"] }
+
+- name: PostgreSQL VM
+  hosts: postgresql
+  become: true
+  roles:
+    - { role: postgresql, tags: ["install", "configure", "update", "restart"] }
+
+- name: MySQL VM
+  hosts: mysql
+  become: true
+  roles:
+    - { role: mysql, tags: ["install", "configure", "update", "restart"] }
+
+- name: Redis VM
+  hosts: redis
+  become: true
+  roles:
+    - { role: redis, tags: ["install", "configure", "update", "restart"] }
+
+- name: OTel Collector VM
+  hosts: otel-collector
+  become: true
+  roles:
+    - { role: otel-collector, tags: ["install", "configure", "update", "restart"] }
+
+- name: Loki VM
+  hosts: loki
+  become: true
+  roles:
+    - { role: loki, tags: ["install", "configure", "update", "restart"] }
+
+- name: Jaeger VM
+  hosts: jaeger
+  become: true
+  roles:
+    - { role: jaeger, tags: ["install", "configure", "update", "restart"] }
+
+- name: Prometheus VM
+  hosts: prometheus
+  become: true
+  roles:
+    - { role: prometheus, tags: ["install", "configure", "update", "restart"] }
+
+- name: Grafana VM
+  hosts: grafana
+  become: true
+  roles:
+    - { role: grafana, tags: ["install", "configure", "update", "restart"] }
+
+- name: User service VM
+  hosts: user_service
+  become: true
+  roles:
+    - { role: user-service, tags: ["install", "configure", "update", "restart"] }
+
+- name: Course service VM
+  hosts: course_service
+  become: true
+  roles:
+    - { role: course-service, tags: ["install", "configure", "update", "restart"] }
+
+- name: Content service VM
+  hosts: content_service
+  become: true
+  roles:
+    - { role: content-service, tags: ["install", "configure", "update", "restart"] }
+
+- name: Quiz service VM
+  hosts: quiz_service
+  become: true
+  roles:
+    - { role: quiz-service, tags: ["install", "configure", "update", "restart"] }
+
+- name: Notification service VM
+  hosts: notification_service
+  become: true
+  roles:
+    - { role: notification-service, tags: ["install", "configure", "update", "restart"] }
+
+- name: API gateway VM
+  hosts: api_gateway
+  become: true
+  roles:
+    - { role: api-gateway, tags: ["install", "configure", "update", "restart"] }
+
+- name: Frontend VM
+  hosts: frontend
+  become: true
+  roles:
+    - { role: frontend, tags: ["install", "configure", "update", "restart"] }

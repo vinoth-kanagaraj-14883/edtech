@@ -1,0 +1,2 @@
+jaeger_bin: /usr/local/bin/jaeger-all-in-one
+jaeger_data_dir: /var/lib/jaeger

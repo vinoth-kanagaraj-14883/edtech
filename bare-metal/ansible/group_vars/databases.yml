@@ -1,0 +1,15 @@
+postgresql_databases:
+  - user_db
+  - course_db
+postgresql_users:
+  - { name: "user_service", password: "{{ vault_user_service_db_password }}", db: "user_db" }
+  - { name: "course_service", password: "{{ vault_course_service_db_password }}", db: "course_db" }
+
+mysql_databases:
+  - content_db
+  - quiz_db
+mysql_users:
+  - { name: "content_service", password: "{{ vault_content_service_db_password }}", db: "content_db" }
+  - { name: "quiz_service", password: "{{ vault_quiz_service_db_password }}", db: "quiz_db" }
+
+redis_password: "{{ vault_redis_password }}"

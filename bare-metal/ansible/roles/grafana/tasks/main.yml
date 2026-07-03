@@ -1,0 +1,81 @@
+---
+- name: Install Grafana prerequisites
+  ansible.builtin.apt:
+    name: [apt-transport-https, software-properties-common, wget]
+    state: present
+    update_cache: true
+  tags: ["install"]
+
+- name: Add Grafana apt key
+  ansible.builtin.get_url:
+    url: https://packages.grafana.com/gpg.key
+    dest: /usr/share/keyrings/grafana.asc
+    mode: "0644"
+  tags: ["install"]
+
+- name: Add Grafana repository
+  ansible.builtin.apt_repository:
+    repo: "deb [signed-by=/usr/share/keyrings/grafana.asc] https://packages.grafana.com/oss/deb stable main"
+    filename: grafana
+    state: present
+  tags: ["install"]
+
+- name: Install Grafana
+  ansible.builtin.apt:
+    name: grafana
+    state: present
+    update_cache: true
+  tags: ["install"]
+
+- name: Create provisioning directory
+  ansible.builtin.file:
+    path: "{{ grafana_datasource_dir }}"
+    state: directory
+    mode: "0755"
+  tags: ["configure"]
+
+- name: Configure grafana.ini
+  ansible.builtin.template:
+    src: grafana.ini.j2
+    dest: /etc/grafana/grafana.ini
+    mode: "0644"
+  notify: Restart grafana
+  tags: ["configure"]
+
+- name: Configure Prometheus datasource
+  ansible.builtin.template:
+    src: datasource-prometheus.yml.j2
+    dest: "{{ grafana_datasource_dir }}/prometheus.yml"
+    mode: "0644"
+  notify: Restart grafana
+  tags: ["configure"]
+
+- name: Configure Jaeger datasource
+  ansible.builtin.template:
+    src: datasource-jaeger.yml.j2
+    dest: "{{ grafana_datasource_dir }}/jaeger.yml"
+    mode: "0644"
+  notify: Restart grafana
+  tags: ["configure"]
+
+- name: Configure Loki datasource
+  ansible.builtin.template:
+    src: datasource-loki.yml.j2
+    dest: "{{ grafana_datasource_dir }}/loki.yml"
+    mode: "0644"
+  notify: Restart grafana
+  tags: ["configure"]
+
+- name: Allow Grafana port
+  community.general.ufw:
+    rule: allow
+    proto: tcp
+    port: "3000"
+  tags: ["configure"]
+
+- name: Enable Grafana
+  ansible.builtin.systemd:
+    name: grafana-server
+    state: started
+    enabled: true
+  tags: ["restart"]

@@ -1,0 +1,4 @@
+node_exporter_user: nodeexp
+node_exporter_group: nodeexp
+node_exporter_install_dir: /opt/node-exporter
+node_exporter_bin: /usr/local/bin/node_exporter

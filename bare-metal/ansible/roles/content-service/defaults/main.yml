@@ -1,0 +1,2 @@
+service_dir: "{{ app_base_dir }}/content-service"
+repo_subdir: content-service

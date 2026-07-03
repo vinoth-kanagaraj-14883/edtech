@@ -1,0 +1,98 @@
+---
+- name: Install Redis
+  ansible.builtin.apt:
+    name:
+      - redis-server
+    state: present
+    update_cache: true
+  tags: ["install"]
+
+- name: Configure Redis
+  ansible.builtin.template:
+    src: redis.conf.j2
+    dest: /etc/redis/redis.conf
+    mode: "0644"
+  notify: Restart Redis
+  tags: ["configure"]
+
+- name: Install Redis service unit
+  ansible.builtin.template:
+    src: redis.service.j2
+    dest: /etc/systemd/system/redis.service
+    mode: "0644"
+  notify: Restart Redis
+  tags: ["configure"]
+
+- name: Enable Redis
+  ansible.builtin.systemd:
+    name: redis
+    enabled: true
+    state: started
+  tags: ["restart"]
+
+- name: Allow Redis port
+  community.general.ufw:
+    rule: allow
+    proto: tcp
+    port: "6379"
+  tags: ["configure"]
+
+- name: Download redis_exporter
+  ansible.builtin.get_url:
+    url: "https://github.com/oliver006/redis_exporter/releases/download/v{{ prometheus_exporters.redis_exporter_version }}/redis_exporter-v{{ prometheus_exporters.redis_exporter_version }}.linux-amd64.tar.gz"
+    dest: "/tmp/redis_exporter-{{ prometheus_exporters.redis_exporter_version }}.tar.gz"
+    mode: "0644"
+  tags: ["install"]
+
+- name: Extract redis_exporter
+  ansible.builtin.unarchive:
+    src: "/tmp/redis_exporter-{{ prometheus_exporters.redis_exporter_version }}.tar.gz"
+    dest: /tmp
+    remote_src: true
+    creates: "/tmp/redis_exporter-v{{ prometheus_exporters.redis_exporter_version }}.linux-amd64/redis_exporter"
+  tags: ["install"]
+
+- name: Install redis_exporter binary
+  ansible.builtin.copy:
+    src: "/tmp/redis_exporter-v{{ prometheus_exporters.redis_exporter_version }}.linux-amd64/redis_exporter"
+    dest: "{{ redis_exporter_bin }}"
+    mode: "0755"
+    remote_src: true
+  notify: Restart redis exporter
+  tags: ["install", "update"]
+
+- name: Install redis_exporter service
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/redis-exporter.service
+    mode: "0644"
+    content: |
+      [Unit]
+      Description=Prometheus Redis Exporter
+      After=network.target redis.service
+
+      [Service]
+      Type=simple
+      Environment=REDIS_ADDR=redis://127.0.0.1:6379
+      Environment=REDIS_PASSWORD={{ redis_password }}
+      ExecStart={{ redis_exporter_bin }}
+      Restart=always
+
+      [Install]
+      WantedBy=multi-user.target
+  notify: Restart redis exporter
+  tags: ["configure"]
+
+- name: Allow redis exporter port
+  community.general.ufw:
+    rule: allow
+    proto: tcp
+    port: "9121"
+    from_ip: "{{ prometheus_host }}"
+  tags: ["configure"]
+
+- name: Enable redis exporter
+  ansible.builtin.systemd:
+    name: redis-exporter
+    enabled: true
+    state: started
+  tags: ["restart"]
