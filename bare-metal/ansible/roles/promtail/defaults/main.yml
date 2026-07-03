@@ -1,0 +1,6 @@
+promtail_user: promtail
+promtail_group: promtail
+promtail_install_dir: /opt/promtail
+promtail_bin: /usr/local/bin/promtail
+promtail_http_port: 9080
+promtail_grpc_port: 0

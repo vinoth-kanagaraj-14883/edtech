@@ -1,0 +1,10 @@
+bind {{ redis_bind }}
+port {{ redis_port }}
+protected-mode yes
+requirepass {{ redis_password }}
+maxmemory {{ redis_maxmemory }}
+maxmemory-policy allkeys-lru
+appendonly yes
+save 900 1
+save 300 10
+save 60 10000

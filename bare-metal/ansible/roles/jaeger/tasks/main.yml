@@ -1,0 +1,62 @@
+---
+- name: Create Jaeger data directory
+  ansible.builtin.file:
+    path: "{{ jaeger_data_dir }}"
+    state: directory
+    mode: "0755"
+  tags: ["install"]
+
+- name: Download Jaeger
+  ansible.builtin.get_url:
+    url: "https://github.com/jaegertracing/jaeger/releases/download/v{{ jaeger_version }}/jaeger-{{ jaeger_version }}-linux-amd64.tar.gz"
+    dest: "/tmp/jaeger-{{ jaeger_version }}.tar.gz"
+    mode: "0644"
+  tags: ["install"]
+
+- name: Extract Jaeger
+  ansible.builtin.unarchive:
+    src: "/tmp/jaeger-{{ jaeger_version }}.tar.gz"
+    dest: /tmp
+    remote_src: true
+    creates: "/tmp/jaeger-{{ jaeger_version }}-linux-amd64/jaeger-all-in-one"
+  tags: ["install"]
+
+- name: Install Jaeger binary
+  ansible.builtin.copy:
+    src: "/tmp/jaeger-{{ jaeger_version }}-linux-amd64/jaeger-all-in-one"
+    dest: "{{ jaeger_bin }}"
+    remote_src: true
+    mode: "0755"
+  notify: Restart jaeger
+  tags: ["install", "update"]
+
+- name: Render Jaeger env
+  ansible.builtin.template:
+    src: jaeger.env.j2
+    dest: /etc/jaeger.env
+    mode: "0644"
+  notify: Restart jaeger
+  tags: ["configure"]
+
+- name: Render Jaeger service
+  ansible.builtin.template:
+    src: jaeger.service.j2
+    dest: /etc/systemd/system/jaeger.service
+    mode: "0644"
+  notify: Restart jaeger
+  tags: ["configure"]
+
+- name: Allow Jaeger ports
+  community.general.ufw:
+    rule: allow
+    proto: tcp
+    port: "{{ item }}"
+  loop: ["16686", "4317"]
+  tags: ["configure"]
+
+- name: Enable Jaeger
+  ansible.builtin.systemd:
+    name: jaeger
+    state: started
+    enabled: true
+  tags: ["restart"]

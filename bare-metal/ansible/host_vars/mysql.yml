@@ -1,0 +1,2 @@
+service_name: mysql
+service_port: 3306

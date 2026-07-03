@@ -1,0 +1,73 @@
+---
+- name: Install notification-service runtime packages
+  ansible.builtin.apt:
+    name: [golang-go, git]
+    state: present
+    update_cache: true
+  tags: ["install"]
+
+- name: Create notification-service directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ app_user }}"
+    group: "{{ app_group }}"
+    mode: "0755"
+  loop: ["{{ service_dir }}", "{{ service_dir }}/repo", "{{ service_dir }}/bin"]
+  tags: ["install"]
+
+- name: Checkout source repository
+  ansible.builtin.git:
+    repo: "{{ repo_url }}"
+    dest: "{{ service_dir }}/repo"
+    version: "{{ repo_branch }}"
+    force: true
+  become_user: "{{ app_user }}"
+  tags: ["install", "update"]
+
+- name: Build notification-service binary
+  ansible.builtin.command: go build -o "{{ service_dir }}/bin/notification-service" main.go
+  args:
+    chdir: "{{ service_dir }}/repo/{{ repo_subdir }}"
+  become_user: "{{ app_user }}"
+  tags: ["install", "update"]
+
+- name: Render notification-service env
+  ansible.builtin.template:
+    src: notification-service.env.j2
+    dest: "{{ service_dir }}/.env"
+    owner: "{{ app_user }}"
+    group: "{{ app_group }}"
+    mode: "0640"
+  notify: Restart notification-service
+  tags: ["configure"]
+
+- name: Render notification-service unit
+  ansible.builtin.template:
+    src: notification-service.service.j2
+    dest: /etc/systemd/system/notification-service.service
+    mode: "0644"
+  notify: Restart notification-service
+  tags: ["configure"]
+
+- name: Render notification-service logrotate
+  ansible.builtin.template:
+    src: notification-service.logrotate.j2
+    dest: /etc/logrotate.d/notification-service
+    mode: "0644"
+  tags: ["configure"]
+
+- name: Allow notification-service port from api-gateway
+  community.general.ufw:
+    rule: allow
+    proto: tcp
+    port: "8005"
+    from_ip: "{{ api_gateway_host | default('192.168.1.10') }}"
+  tags: ["configure"]
+
+- name: Enable notification-service
+  ansible.builtin.systemd:
+    name: notification-service
+    state: started
+    enabled: true
+  tags: ["restart"]

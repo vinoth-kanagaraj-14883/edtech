@@ -1,0 +1,162 @@
+---
+- name: Install PostgreSQL dependencies
+  ansible.builtin.apt:
+    name:
+      - gnupg
+      - ca-certificates
+      - curl
+      - python3-psycopg2
+    state: present
+    update_cache: true
+  tags: ["install"]
+
+- name: Add PostgreSQL apt key
+  ansible.builtin.get_url:
+    url: https://www.postgresql.org/media/keys/ACCC4CF8.asc
+    dest: /usr/share/keyrings/postgresql.asc
+    mode: "0644"
+  tags: ["install"]
+
+- name: Add PostgreSQL apt repository
+  ansible.builtin.apt_repository:
+    repo: "deb [signed-by=/usr/share/keyrings/postgresql.asc] http://apt.postgresql.org/pub/repos/apt {{ ansible_distribution_release }}-pgdg main"
+    filename: pgdg
+    state: present
+  tags: ["install"]
+
+- name: Install PostgreSQL {{ postgresql_version }}
+  ansible.builtin.apt:
+    name:
+      - "postgresql-{{ postgresql_version }}"
+      - "postgresql-client-{{ postgresql_version }}"
+    state: present
+    update_cache: true
+  tags: ["install"]
+
+- name: Configure postgresql.conf
+  ansible.builtin.template:
+    src: postgresql.conf.j2
+    dest: "/etc/postgresql/{{ postgresql_version }}/main/postgresql.conf"
+    owner: postgres
+    group: postgres
+    mode: "0644"
+  notify: Restart PostgreSQL
+  tags: ["configure"]
+
+- name: Configure pg_hba.conf
+  ansible.builtin.template:
+    src: pg_hba.conf.j2
+    dest: "/etc/postgresql/{{ postgresql_version }}/main/pg_hba.conf"
+    owner: postgres
+    group: postgres
+    mode: "0640"
+  notify: Restart PostgreSQL
+  tags: ["configure"]
+
+- name: Configure PostgreSQL systemd override
+  ansible.builtin.template:
+    src: postgresql.service.override.j2
+    dest: /etc/systemd/system/postgresql.service.d/override.conf
+    mode: "0644"
+  notify: Restart PostgreSQL
+  tags: ["configure"]
+
+- name: Ensure PostgreSQL service started
+  ansible.builtin.systemd:
+    name: postgresql
+    enabled: true
+    state: started
+  tags: ["restart"]
+
+- name: Ensure PostgreSQL databases exist
+  community.postgresql.postgresql_db:
+    name: "{{ item }}"
+    state: present
+  become_user: postgres
+  loop: "{{ postgresql_databases }}"
+  tags: ["configure"]
+
+- name: Ensure PostgreSQL users exist
+  community.postgresql.postgresql_user:
+    name: "{{ item.name }}"
+    password: "{{ item.password }}"
+    db: "{{ item.db }}"
+    priv: "ALL"
+    state: present
+  become_user: postgres
+  loop: "{{ postgresql_users }}"
+  tags: ["configure"]
+
+- name: Allow PostgreSQL port
+  community.general.ufw:
+    rule: allow
+    proto: tcp
+    port: "5432"
+  tags: ["configure"]
+
+- name: Install postgres_exporter user
+  ansible.builtin.user:
+    name: "{{ postgresql_exporter_user }}"
+    system: true
+    create_home: false
+  tags: ["install"]
+
+- name: Download postgres_exporter
+  ansible.builtin.get_url:
+    url: "https://github.com/prometheus-community/postgres_exporter/releases/download/v{{ prometheus_exporters.postgres_exporter_version }}/postgres_exporter-{{ prometheus_exporters.postgres_exporter_version }}.linux-amd64.tar.gz"
+    dest: "/tmp/postgres_exporter-{{ prometheus_exporters.postgres_exporter_version }}.tar.gz"
+    mode: "0644"
+  tags: ["install"]
+
+- name: Extract postgres_exporter
+  ansible.builtin.unarchive:
+    src: "/tmp/postgres_exporter-{{ prometheus_exporters.postgres_exporter_version }}.tar.gz"
+    dest: /tmp
+    remote_src: true
+    creates: "/tmp/postgres_exporter-{{ prometheus_exporters.postgres_exporter_version }}.linux-amd64/postgres_exporter"
+  tags: ["install"]
+
+- name: Install postgres_exporter binary
+  ansible.builtin.copy:
+    src: "/tmp/postgres_exporter-{{ prometheus_exporters.postgres_exporter_version }}.linux-amd64/postgres_exporter"
+    dest: "{{ postgresql_exporter_bin }}"
+    mode: "0755"
+    remote_src: true
+  notify: Restart postgres exporter
+  tags: ["install", "update"]
+
+- name: Install postgres_exporter service
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/postgres-exporter.service
+    mode: "0644"
+    content: |
+      [Unit]
+      Description=Prometheus PostgreSQL Exporter
+      After=network.target postgresql.service
+
+      [Service]
+      User={{ postgresql_exporter_user }}
+      Group={{ postgresql_exporter_user }}
+      Environment=DATA_SOURCE_NAME=postgresql://postgres@127.0.0.1:5432/postgres?sslmode=disable
+      ExecStart={{ postgresql_exporter_bin }}
+      Restart=always
+
+      [Install]
+      WantedBy=multi-user.target
+  notify: Restart postgres exporter
+  tags: ["configure"]
+
+- name: Allow postgres exporter port
+  community.general.ufw:
+    rule: allow
+    proto: tcp
+    port: "9187"
+    from_ip: "{{ prometheus_host }}"
+  tags: ["configure"]
+
+- name: Enable postgres exporter
+  ansible.builtin.systemd:
+    name: postgres-exporter
+    enabled: true
+    state: started
+  tags: ["restart"]

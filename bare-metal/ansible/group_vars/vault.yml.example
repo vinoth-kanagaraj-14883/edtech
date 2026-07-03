@@ -1,0 +1,10 @@
+# Copy to vault.yml and encrypt with:
+# ansible-vault encrypt ansible/group_vars/vault.yml
+vault_jwt_secret: "replace-me"
+vault_user_service_db_password: "replace-me"
+vault_course_service_db_password: "replace-me"
+vault_content_service_db_password: "replace-me"
+vault_quiz_service_db_password: "replace-me"
+vault_mysql_exporter_password: "replace-me"
+vault_redis_password: "replace-me"
+vault_grafana_admin_password: "replace-me"

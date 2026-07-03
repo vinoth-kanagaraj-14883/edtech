@@ -1,0 +1,2 @@
+otel_collector_bin: /usr/local/bin/otelcol-contrib
+otel_collector_config: /etc/otel-collector/config.yml

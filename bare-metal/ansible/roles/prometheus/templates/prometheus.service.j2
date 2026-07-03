@@ -1,0 +1,12 @@
+[Unit]
+Description=Prometheus
+After=network.target
+
+[Service]
+Type=simple
+ExecStart={{ prometheus_bin }} --config.file={{ prometheus_config }} --storage.tsdb.path={{ prometheus_data_dir }} --storage.tsdb.retention.time={{ prometheus_retention }}
+Restart=always
+RestartSec=5s
+
+[Install]
+WantedBy=multi-user.target

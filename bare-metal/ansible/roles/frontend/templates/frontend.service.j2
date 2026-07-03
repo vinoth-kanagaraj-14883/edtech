@@ -1,0 +1,28 @@
+[Unit]
+Description=EdTech Frontend
+After=network.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User={{ app_user }}
+Group={{ app_group }}
+WorkingDirectory={{ service_dir }}/repo/frontend
+EnvironmentFile={{ service_dir }}/.env
+ExecStart=/usr/bin/npm run start -- --hostname 0.0.0.0 --port 3000
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=always
+RestartSec=5s
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=frontend
+TimeoutStopSec=30s
+KillMode=mixed
+KillSignal=SIGTERM
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ReadWritePaths={{ service_dir }} {{ log_dir }}
+
+[Install]
+WantedBy=multi-user.target

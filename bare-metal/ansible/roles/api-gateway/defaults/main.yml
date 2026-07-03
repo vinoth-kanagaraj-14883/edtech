@@ -1,0 +1,2 @@
+service_dir: "{{ app_base_dir }}/api-gateway"
+repo_subdir: api-gateway

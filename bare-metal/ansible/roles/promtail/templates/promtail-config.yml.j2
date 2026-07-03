@@ -1,0 +1,28 @@
+server:
+  http_listen_port: {{ promtail_http_port }}
+  grpc_listen_port: {{ promtail_grpc_port }}
+
+positions:
+  filename: /var/lib/promtail/positions.yaml
+
+clients:
+  - url: {{ loki_push_url }}
+
+scrape_configs:
+  - job_name: edtech-app
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: {{ service_name | default(inventory_hostname) }}
+          host: {{ ansible_hostname }}
+          __path__: /var/log/edtech/*.log
+
+  - job_name: syslog
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: syslog
+          host: {{ ansible_hostname }}
+          __path__: /var/log/syslog

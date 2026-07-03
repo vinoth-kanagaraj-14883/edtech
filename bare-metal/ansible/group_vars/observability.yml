@@ -1,0 +1,6 @@
+grafana_admin_user: "admin"
+grafana_admin_password: "{{ vault_grafana_admin_password }}"
+jaeger_otlp_grpc_port: 4317
+jaeger_query_port: 16686
+prometheus_retention: "30d"
+loki_retention_period: "168h"

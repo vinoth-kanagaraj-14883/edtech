@@ -1,0 +1,62 @@
+---
+- name: Create otel collector directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: "0755"
+  loop: [/etc/otel-collector, /var/lib/otel-collector]
+  tags: ["install"]
+
+- name: Download otel collector
+  ansible.builtin.get_url:
+    url: "https://github.com/open-telemetry/opentelemetry-collector-releases/releases/download/v{{ otel_collector_version }}/otelcol-contrib_{{ otel_collector_version }}_linux_amd64.tar.gz"
+    dest: "/tmp/otelcol-{{ otel_collector_version }}.tar.gz"
+    mode: "0644"
+  tags: ["install"]
+
+- name: Extract otel collector
+  ansible.builtin.unarchive:
+    src: "/tmp/otelcol-{{ otel_collector_version }}.tar.gz"
+    dest: /tmp
+    remote_src: true
+    creates: /tmp/otelcol-contrib
+  tags: ["install"]
+
+- name: Install otel collector binary
+  ansible.builtin.copy:
+    src: /tmp/otelcol-contrib
+    dest: "{{ otel_collector_bin }}"
+    remote_src: true
+    mode: "0755"
+  notify: Restart otel-collector
+  tags: ["install", "update"]
+
+- name: Install otel collector config
+  ansible.builtin.template:
+    src: otel-collector-config.yml.j2
+    dest: "{{ otel_collector_config }}"
+    mode: "0644"
+  notify: Restart otel-collector
+  tags: ["configure"]
+
+- name: Install otel collector service
+  ansible.builtin.template:
+    src: otel-collector.service.j2
+    dest: /etc/systemd/system/otel-collector.service
+    mode: "0644"
+  notify: Restart otel-collector
+  tags: ["configure"]
+
+- name: Allow otel collector grpc
+  community.general.ufw:
+    rule: allow
+    proto: tcp
+    port: "4317"
+  tags: ["configure"]
+
+- name: Enable otel collector
+  ansible.builtin.systemd:
+    name: otel-collector
+    state: started
+    enabled: true
+  tags: ["restart"]

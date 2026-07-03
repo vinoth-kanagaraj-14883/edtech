@@ -1,0 +1,107 @@
+---
+- name: Install quiz-service dependencies
+  ansible.builtin.apt:
+    name: [git, curl, build-essential, libssl-dev, zlib1g-dev, libreadline-dev, libyaml-dev, libffi-dev, libgdbm-dev]
+    state: present
+    update_cache: true
+  tags: ["install"]
+
+- name: Install rbenv
+  ansible.builtin.git:
+    repo: https://github.com/rbenv/rbenv.git
+    dest: "{{ app_base_dir }}/.rbenv"
+    version: master
+  become_user: "{{ app_user }}"
+  tags: ["install"]
+
+- name: Install ruby-build plugin
+  ansible.builtin.git:
+    repo: https://github.com/rbenv/ruby-build.git
+    dest: "{{ app_base_dir }}/.rbenv/plugins/ruby-build"
+    version: master
+  become_user: "{{ app_user }}"
+  tags: ["install"]
+
+- name: Install Ruby
+  ansible.builtin.shell: |
+    export RBENV_ROOT={{ app_base_dir }}/.rbenv
+    export PATH="$RBENV_ROOT/bin:$PATH"
+    eval "$(rbenv init -)"
+    rbenv install -s {{ ruby_version }}
+    rbenv global {{ ruby_version }}
+  args:
+    executable: /bin/bash
+  become_user: "{{ app_user }}"
+  tags: ["install"]
+
+- name: Create quiz-service directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ app_user }}"
+    group: "{{ app_group }}"
+    mode: "0755"
+  loop: ["{{ service_dir }}", "{{ service_dir }}/repo"]
+  tags: ["install"]
+
+- name: Checkout source repository
+  ansible.builtin.git:
+    repo: "{{ repo_url }}"
+    dest: "{{ service_dir }}/repo"
+    version: "{{ repo_branch }}"
+    force: true
+  become_user: "{{ app_user }}"
+  tags: ["install", "update"]
+
+- name: Install bundler and gems
+  ansible.builtin.shell: |
+    export RBENV_ROOT={{ app_base_dir }}/.rbenv
+    export PATH="$RBENV_ROOT/bin:$RBENV_ROOT/shims:$PATH"
+    eval "$(rbenv init -)"
+    gem install bundler
+    bundle install --without development test
+  args:
+    chdir: "{{ service_dir }}/repo/{{ repo_subdir }}"
+    executable: /bin/bash
+  become_user: "{{ app_user }}"
+  tags: ["install", "update"]
+
+- name: Render quiz-service env
+  ansible.builtin.template:
+    src: quiz-service.env.j2
+    dest: "{{ service_dir }}/.env"
+    owner: "{{ app_user }}"
+    group: "{{ app_group }}"
+    mode: "0640"
+  notify: Restart quiz-service
+  tags: ["configure"]
+
+- name: Render quiz-service unit
+  ansible.builtin.template:
+    src: quiz-service.service.j2
+    dest: /etc/systemd/system/quiz-service.service
+    mode: "0644"
+  notify: Restart quiz-service
+  tags: ["configure"]
+
+- name: Render quiz-service logrotate
+  ansible.builtin.template:
+    src: quiz-service.logrotate.j2
+    dest: /etc/logrotate.d/quiz-service
+    mode: "0644"
+  tags: ["configure"]
+
+- name: Allow quiz-service port from api-gateway
+  community.general.ufw:
+    rule: allow
+    proto: tcp
+    port: "8004"
+    from_ip: "{{ api_gateway_host | default('192.168.1.10') }}"
+  tags: ["configure"]
+
+- name: Enable quiz-service
+  ansible.builtin.systemd:
+    name: quiz-service
+    state: started
+    enabled: true
+  tags: ["restart"]

@@ -1,0 +1,95 @@
+---
+- name: Install Node.js dependencies
+  ansible.builtin.apt:
+    name: [curl, git, ca-certificates, gnupg]
+    state: present
+    update_cache: true
+  tags: ["install"]
+
+- name: Add NodeSource repository
+  ansible.builtin.shell: |
+    set -euo pipefail
+    curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+  args:
+    creates: /etc/apt/sources.list.d/nodesource.list
+  tags: ["install"]
+
+- name: Install Node.js 20
+  ansible.builtin.apt:
+    name: nodejs
+    state: present
+    update_cache: true
+  tags: ["install"]
+
+- name: Create content-service directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ app_user }}"
+    group: "{{ app_group }}"
+    mode: "0755"
+  loop: ["{{ service_dir }}", "{{ service_dir }}/repo"]
+  tags: ["install"]
+
+- name: Checkout source repository
+  ansible.builtin.git:
+    repo: "{{ repo_url }}"
+    dest: "{{ service_dir }}/repo"
+    version: "{{ repo_branch }}"
+    force: true
+  become_user: "{{ app_user }}"
+  tags: ["install", "update"]
+
+- name: Install npm dependencies
+  ansible.builtin.command: npm ci
+  args:
+    chdir: "{{ service_dir }}/repo/{{ repo_subdir }}"
+  become_user: "{{ app_user }}"
+  tags: ["install", "update"]
+
+- name: Build content-service
+  ansible.builtin.command: npm run build
+  args:
+    chdir: "{{ service_dir }}/repo/{{ repo_subdir }}"
+  become_user: "{{ app_user }}"
+  tags: ["install", "update"]
+
+- name: Render content-service env
+  ansible.builtin.template:
+    src: content-service.env.j2
+    dest: "{{ service_dir }}/.env"
+    owner: "{{ app_user }}"
+    group: "{{ app_group }}"
+    mode: "0640"
+  notify: Restart content-service
+  tags: ["configure"]
+
+- name: Render content-service unit
+  ansible.builtin.template:
+    src: content-service.service.j2
+    dest: /etc/systemd/system/content-service.service
+    mode: "0644"
+  notify: Restart content-service
+  tags: ["configure"]
+
+- name: Render content-service logrotate
+  ansible.builtin.template:
+    src: content-service.logrotate.j2
+    dest: /etc/logrotate.d/content-service
+    mode: "0644"
+  tags: ["configure"]
+
+- name: Allow content-service port from api-gateway
+  community.general.ufw:
+    rule: allow
+    proto: tcp
+    port: "8003"
+    from_ip: "{{ api_gateway_host | default('192.168.1.10') }}"
+  tags: ["configure"]
+
+- name: Enable content-service
+  ansible.builtin.systemd:
+    name: content-service
+    state: started
+    enabled: true
+  tags: ["restart"]

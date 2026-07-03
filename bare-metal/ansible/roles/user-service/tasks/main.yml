@@ -1,0 +1,90 @@
+---
+- name: Install user-service runtime packages
+  ansible.builtin.apt:
+    name: [python3, python3-venv, python3-pip, git]
+    state: present
+    update_cache: true
+  tags: ["install"]
+
+- name: Create user-service directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ app_user }}"
+    group: "{{ app_group }}"
+    mode: "0755"
+  loop: ["{{ service_dir }}", "{{ service_dir }}/repo"]
+  tags: ["install"]
+
+- name: Checkout source repository
+  ansible.builtin.git:
+    repo: "{{ repo_url }}"
+    dest: "{{ service_dir }}/repo"
+    version: "{{ repo_branch }}"
+    force: true
+  become_user: "{{ app_user }}"
+  tags: ["install", "update"]
+
+- name: Create Python virtualenv
+  ansible.builtin.command: python3 -m venv {{ service_dir }}/venv
+  args:
+    creates: "{{ service_dir }}/venv/bin/activate"
+  become_user: "{{ app_user }}"
+  tags: ["install"]
+
+- name: Install user-service dependencies
+  ansible.builtin.pip:
+    requirements: "{{ service_dir }}/repo/{{ repo_subdir }}/requirements.txt"
+    virtualenv: "{{ service_dir }}/venv"
+  tags: ["install", "update"]
+
+- name: Render user-service env
+  ansible.builtin.template:
+    src: user-service.env.j2
+    dest: "{{ service_dir }}/.env"
+    owner: "{{ app_user }}"
+    group: "{{ app_group }}"
+    mode: "0640"
+  notify: Restart user-service
+  tags: ["configure"]
+
+- name: Run alembic migrations
+  ansible.builtin.shell: |
+    set -a
+    source {{ service_dir }}/.env
+    set +a
+    {{ service_dir }}/venv/bin/alembic upgrade head
+  args:
+    chdir: "{{ service_dir }}/repo/{{ repo_subdir }}"
+  become_user: "{{ app_user }}"
+  tags: ["update"]
+
+- name: Render user-service unit
+  ansible.builtin.template:
+    src: user-service.service.j2
+    dest: /etc/systemd/system/user-service.service
+    mode: "0644"
+  notify: Restart user-service
+  tags: ["configure"]
+
+- name: Render user-service logrotate
+  ansible.builtin.template:
+    src: user-service.logrotate.j2
+    dest: /etc/logrotate.d/user-service
+    mode: "0644"
+  tags: ["configure"]
+
+- name: Allow user-service port from api-gateway
+  community.general.ufw:
+    rule: allow
+    proto: tcp
+    port: "8001"
+    from_ip: "{{ api_gateway_host | default('192.168.1.10') }}"
+  tags: ["configure"]
+
+- name: Enable user-service
+  ansible.builtin.systemd:
+    name: user-service
+    state: started
+    enabled: true
+  tags: ["restart"]

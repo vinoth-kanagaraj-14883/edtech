@@ -1,0 +1,68 @@
+---
+- name: Create node exporter group
+  ansible.builtin.group:
+    name: "{{ node_exporter_group }}"
+    system: true
+  tags: ["install"]
+
+- name: Create node exporter user
+  ansible.builtin.user:
+    name: "{{ node_exporter_user }}"
+    group: "{{ node_exporter_group }}"
+    system: true
+    create_home: false
+  tags: ["install"]
+
+- name: Create install directory
+  ansible.builtin.file:
+    path: "{{ node_exporter_install_dir }}"
+    state: directory
+    mode: "0755"
+  tags: ["install"]
+
+- name: Download node exporter
+  ansible.builtin.get_url:
+    url: "https://github.com/prometheus/node_exporter/releases/download/v{{ node_exporter_version }}/node_exporter-{{ node_exporter_version }}.linux-amd64.tar.gz"
+    dest: "/tmp/node_exporter-{{ node_exporter_version }}.tar.gz"
+    mode: "0644"
+  tags: ["install"]
+
+- name: Extract node exporter
+  ansible.builtin.unarchive:
+    src: "/tmp/node_exporter-{{ node_exporter_version }}.tar.gz"
+    dest: "{{ node_exporter_install_dir }}"
+    remote_src: true
+    creates: "{{ node_exporter_install_dir }}/node_exporter-{{ node_exporter_version }}.linux-amd64/node_exporter"
+  tags: ["install"]
+
+- name: Install node exporter binary
+  ansible.builtin.copy:
+    src: "{{ node_exporter_install_dir }}/node_exporter-{{ node_exporter_version }}.linux-amd64/node_exporter"
+    dest: "{{ node_exporter_bin }}"
+    mode: "0755"
+    remote_src: true
+  notify: Restart node exporter
+  tags: ["install", "update"]
+
+- name: Install node exporter systemd unit
+  ansible.builtin.template:
+    src: node-exporter.service.j2
+    dest: /etc/systemd/system/node-exporter.service
+    mode: "0644"
+  notify: Restart node exporter
+  tags: ["configure"]
+
+- name: Allow node exporter metrics
+  community.general.ufw:
+    rule: allow
+    proto: tcp
+    port: "9100"
+    from_ip: "{{ prometheus_host }}"
+  tags: ["configure"]
+
+- name: Enable and start node exporter
+  ansible.builtin.systemd:
+    name: node-exporter
+    enabled: true
+    state: started
+  tags: ["restart"]

@@ -1,0 +1,7 @@
+---
+- name: Restart quiz-service
+  ansible.builtin.systemd:
+    name: quiz-service
+    state: restarted
+    enabled: true
+    daemon_reload: true

@@ -1,0 +1,28 @@
+[Unit]
+Description=EdTech API Gateway
+After=network.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User={{ app_user }}
+Group={{ app_group }}
+WorkingDirectory={{ service_dir }}
+EnvironmentFile={{ service_dir }}/.env
+ExecStart={{ service_dir }}/bin/api-gateway
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=always
+RestartSec=5s
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=api-gateway
+TimeoutStopSec=30s
+KillMode=mixed
+KillSignal=SIGTERM
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ReadWritePaths={{ service_dir }} {{ log_dir }}
+
+[Install]
+WantedBy=multi-user.target
