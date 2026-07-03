@@ -30,6 +30,7 @@
   args:
     chdir: "{{ service_dir }}/repo/{{ repo_subdir }}"
   become_user: "{{ app_user }}"
+  changed_when: false
   tags: ["install", "update"]
 
 - name: Render api-gateway env

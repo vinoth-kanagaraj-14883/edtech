@@ -39,6 +39,7 @@ app_base_dir: "/opt/edtech"
 repo_url: "https://github.com/vinoth-kanagaraj-14883/edtech.git"
 repo_branch: "main"
 log_dir: "/var/log/edtech"
+app_network_cidr: "192.168.1.0/24"
 
 prometheus_exporters:
   postgres_exporter_version: "0.15.0"

@@ -1,3 +1,4 @@
+-- Reference only. Production provisioning is handled by Ansible tasks with vault vars.
 CREATE DATABASE content_db;
 CREATE DATABASE quiz_db;
 CREATE USER 'content_service'@'%' IDENTIFIED BY 'replace-me';

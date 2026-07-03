@@ -117,12 +117,21 @@
 
       [Service]
       Type=simple
-      Environment=DATA_SOURCE_NAME={{ mysql_exporter_user }}:{{ vault_mysql_exporter_password }}@(127.0.0.1:3306)/
+      EnvironmentFile=/etc/default/mysqld-exporter
       ExecStart={{ mysql_exporter_bin }}
       Restart=always
 
       [Install]
       WantedBy=multi-user.target
+  notify: Restart mysqld exporter
+  tags: ["configure"]
+
+- name: Install mysqld exporter environment file
+  ansible.builtin.copy:
+    dest: /etc/default/mysqld-exporter
+    mode: "0600"
+    content: |
+      DATA_SOURCE_NAME={{ mysql_exporter_user }}:{{ vault_mysql_exporter_password }}@(127.0.0.1:3306)/
   notify: Restart mysqld exporter
   tags: ["configure"]
 

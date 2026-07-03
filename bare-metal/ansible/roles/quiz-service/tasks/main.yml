@@ -32,6 +32,7 @@
   args:
     executable: /bin/bash
   become_user: "{{ app_user }}"
+  changed_when: false
   tags: ["install"]
 
 - name: Create quiz-service directories
@@ -64,6 +65,7 @@
     chdir: "{{ service_dir }}/repo/{{ repo_subdir }}"
     executable: /bin/bash
   become_user: "{{ app_user }}"
+  changed_when: false
   tags: ["install", "update"]
 
 - name: Render quiz-service env
@@ -96,7 +98,7 @@
     rule: allow
     proto: tcp
     port: "8004"
-    from_ip: "{{ api_gateway_host | default('192.168.1.10') }}"
+    from_ip: "{{ api_gateway_host }}"
   tags: ["configure"]
 
 - name: Enable quiz-service

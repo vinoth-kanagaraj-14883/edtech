@@ -30,6 +30,7 @@
   args:
     chdir: "{{ service_dir }}/repo/{{ repo_subdir }}"
   become_user: "{{ app_user }}"
+  changed_when: false
   tags: ["install", "update"]
 
 - name: Render notification-service env
@@ -62,7 +63,7 @@
     rule: allow
     proto: tcp
     port: "8005"
-    from_ip: "{{ api_gateway_host | default('192.168.1.10') }}"
+    from_ip: "{{ api_gateway_host }}"
   tags: ["configure"]
 
 - name: Enable notification-service
