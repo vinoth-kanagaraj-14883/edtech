@@ -1,0 +1,179 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: edtech-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-edtech}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-edtech_password}
+      POSTGRES_DB: ${POSTGRES_DB:-edtech}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-edtech} -d ${POSTGRES_DB:-edtech}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  mysql:
+    image: mysql:8.4
+    container_name: edtech-mysql
+    command: ["--default-authentication-plugin=mysql_native_password"]
+    environment:
+      MYSQL_ROOT_PASSWORD: root_password
+      MYSQL_DATABASE: ${MYSQL_DB:-edtech}
+      MYSQL_USER: ${MYSQL_USER:-edtech}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-edtech_password}
+    ports:
+      - "${MYSQL_PORT:-3306}:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -proot_password"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    container_name: edtech-redis
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  api-gateway:
+    build:
+      context: ./api-gateway
+    container_name: edtech-api-gateway
+    environment:
+      PORT: 8080
+      REDIS_ADDR: redis:6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      OTEL_EXPORTER_OTLP_ENDPOINT: otel-collector:4317
+      JWT_HMAC_SECRET: ${JWT_SECRET:-your-super-secret-jwt-key-change-in-production}
+      USER_SERVICE_URL: ${USER_SERVICE_URL:-http://user-service:8001}
+      COURSE_SERVICE_URL: ${COURSE_SERVICE_URL:-http://course-service:8002}
+      CONTENT_SERVICE_URL: ${CONTENT_SERVICE_URL:-http://content-service:8003}
+      QUIZ_SERVICE_URL: ${QUIZ_SERVICE_URL:-http://quiz-service:8004}
+      NOTIFICATION_SERVICE_URL: ${NOTIFICATION_SERVICE_URL:-http://notification-service:8005}
+    ports:
+      - "8080:8080"
+    depends_on:
+      redis:
+        condition: service_healthy
+      user-service:
+        condition: service_started
+      course-service:
+        condition: service_started
+      content-service:
+        condition: service_started
+      quiz-service:
+        condition: service_started
+      notification-service:
+        condition: service_started
+
+  user-service:
+    build:
+      context: ./user-service
+    container_name: edtech-user-service
+    environment:
+      DATABASE_URL: postgresql://edtech:${POSTGRES_PASSWORD:-edtech_password}@postgres:5432/userdb
+      JWT_SECRET_KEY: ${JWT_SECRET:-your-super-secret-jwt-key-change-in-production}
+      ENVIRONMENT: development
+      OTLP_ENDPOINT: otel-collector:4317
+    ports:
+      - "8001:8001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  course-service:
+    build:
+      context: ./course-service
+    container_name: edtech-course-service
+    environment:
+      DATABASE_URL: jdbc:postgresql://postgres:5432/coursedb
+      DATABASE_USERNAME: ${POSTGRES_USER:-edtech}
+      DATABASE_PASSWORD: ${POSTGRES_PASSWORD:-edtech_password}
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+    ports:
+      - "8002:8002"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  content-service:
+    build:
+      context: ./content-service
+    container_name: edtech-content-service
+    environment:
+      PORT: 8003
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_USER: ${MYSQL_USER:-edtech}
+      DB_PASSWORD: ${MYSQL_PASSWORD:-edtech_password}
+      DB_NAME: contentdb
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+    ports:
+      - "8003:8003"
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  quiz-service:
+    build:
+      context: ./quiz-service
+    container_name: edtech-quiz-service
+    environment:
+      PORT: 8004
+      DATABASE_URL: mysql2://edtech:${MYSQL_PASSWORD:-edtech_password}@mysql:3306/quizdb
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+    ports:
+      - "8004:8004"
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  notification-service:
+    build:
+      context: ./notification-service
+    container_name: edtech-notification-service
+    environment:
+      PORT: 8005
+      REDIS_ADDR: redis:6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      OTEL_EXPORTER_OTLP_ENDPOINT: otel-collector:4317
+    ports:
+      - "8005:8005"
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+    container_name: edtech-frontend
+    environment:
+      PORT: 3000
+      API_URL: http://api-gateway:8080
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8080}
+      NEXT_PUBLIC_OTEL_SERVICE_NAME: edtech-frontend
+      NEXT_PUBLIC_OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: http://localhost:4318/v1/traces
+    ports:
+      - "3000:3000"
+    depends_on:
+      api-gateway:
+        condition: service_started
+
+volumes:
+  postgres-data:
+  mysql-data:
+  redis-data:

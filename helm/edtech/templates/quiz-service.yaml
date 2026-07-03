@@ -1,0 +1,51 @@
+{{- if .Values.quizService.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: quiz-service
+  labels:
+    {{- include "edtech.serviceLabels" (dict "context" . "name" "quiz-service") | nindent 4 }}
+spec:
+  replicas: {{ .Values.quizService.replicas }}
+  selector:
+    matchLabels:
+      {{- include "edtech.selectorLabels" (dict "Release" .Release "name" "quiz-service") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "edtech.selectorLabels" (dict "Release" .Release "name" "quiz-service") | nindent 8 }}
+    spec:
+      containers:
+        - name: quiz-service
+          image: "{{ .Values.quizService.image.repository }}:{{ .Values.quizService.image.tag }}"
+          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          ports:
+            - containerPort: {{ .Values.quizService.containerPort }}
+          env:
+            {{- include "edtech.renderEnv" .Values.quizService.env | nindent 20 }}
+          resources:
+            {{- toYaml .Values.quizService.resources | nindent 20 }}
+          livenessProbe:
+            httpGet:
+              path: {{ .Values.quizService.probes.liveness.path }}
+              port: {{ .Values.quizService.containerPort }}
+          readinessProbe:
+            httpGet:
+              path: {{ .Values.quizService.probes.readiness.path }}
+              port: {{ .Values.quizService.containerPort }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: quiz-service
+  labels:
+    {{- include "edtech.serviceLabels" (dict "context" . "name" "quiz-service") | nindent 4 }}
+spec:
+  type: {{ .Values.quizService.service.type }}
+  selector:
+    {{- include "edtech.selectorLabels" (dict "Release" .Release "name" "quiz-service") | nindent 4 }}
+  ports:
+    - name: http
+      port: {{ .Values.quizService.service.port }}
+      targetPort: {{ .Values.quizService.containerPort }}
+{{- end }}

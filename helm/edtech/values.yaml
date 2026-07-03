@@ -1,0 +1,276 @@
+global:
+  imagePullPolicy: IfNotPresent
+  environment: development
+  otelExporterOtlpEndpoint: http://otel-collector.monitoring.svc.cluster.local:4317
+  jwtSecret: change-me-in-production
+  database:
+    postgres:
+      host: postgres.edtech.svc.cluster.local
+      port: 5432
+      username: edtech
+      password: edtech_password
+      adminDatabase: edtech
+      userDatabase: userdb
+      courseDatabase: coursedb
+    mysql:
+      host: mysql.edtech.svc.cluster.local
+      port: 3306
+      username: edtech
+      password: edtech_password
+      database: contentdb
+    redis:
+      url: redis://redis.edtech.svc.cluster.local:6379
+      password: ""
+  ingress:
+    annotations: {}
+  observability:
+    enabled: true
+    prometheusScrape: true
+
+apiGateway:
+  enabled: true
+  replicas: 2
+  image:
+    repository: ghcr.io/vinoth-kanagaraj-14883/edtech-api-gateway
+    tag: latest
+  containerPort: 8080
+  service:
+    type: ClusterIP
+    port: 8080
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  env:
+    USER_SERVICE_URL: http://user-service:8001
+    COURSE_SERVICE_URL: http://course-service:8002
+    CONTENT_SERVICE_URL: http://content-service:8003
+    QUIZ_SERVICE_URL: http://quiz-service:8004
+    NOTIFICATION_SERVICE_URL: http://notification-service:8005
+    OTEL_SERVICE_NAME: edtech-api-gateway
+    OTEL_RESOURCE_ATTRIBUTES: deployment.environment=development
+  probes:
+    liveness:
+      path: /health
+    readiness:
+      path: /health
+  hpa:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 5
+    targetCPUUtilizationPercentage: 70
+
+userService:
+  enabled: true
+  replicas: 2
+  image:
+    repository: ghcr.io/vinoth-kanagaraj-14883/edtech-user-service
+    tag: latest
+  containerPort: 8001
+  service:
+    type: ClusterIP
+    port: 8001
+  resources:
+    requests:
+      cpu: 100m
+      memory: 192Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  env:
+    DATABASE_URL: postgresql://edtech:replace-with-secret@postgres.edtech.svc.cluster.local:5432/userdb
+    JWT_SECRET_KEY: change-me-in-production
+    ENVIRONMENT: development
+    OTLP_ENDPOINT: otel-collector.monitoring.svc.cluster.local:4317
+  probes:
+    liveness:
+      path: /health
+    readiness:
+      path: /ready
+  hpa:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 5
+    targetCPUUtilizationPercentage: 70
+
+courseService:
+  enabled: true
+  replicas: 2
+  image:
+    repository: ghcr.io/vinoth-kanagaraj-14883/edtech-course-service
+    tag: latest
+  containerPort: 8002
+  service:
+    type: ClusterIP
+    port: 8002
+  resources:
+    requests:
+      cpu: 150m
+      memory: 256Mi
+    limits:
+      cpu: 750m
+      memory: 768Mi
+  env:
+    DATABASE_URL: jdbc:postgresql://postgres.edtech.svc.cluster.local:5432/coursedb
+    DATABASE_USERNAME: edtech
+    DATABASE_PASSWORD: edtech_password
+    OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector.monitoring.svc.cluster.local:4317
+  probes:
+    liveness:
+      path: /health
+    readiness:
+      path: /ready
+  hpa:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 5
+    targetCPUUtilizationPercentage: 70
+
+contentService:
+  enabled: true
+  replicas: 2
+  image:
+    repository: ghcr.io/vinoth-kanagaraj-14883/edtech-content-service
+    tag: latest
+  containerPort: 8003
+  service:
+    type: ClusterIP
+    port: 8003
+  resources:
+    requests:
+      cpu: 100m
+      memory: 192Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  env:
+    PORT: "8003"
+    DB_HOST: mysql.edtech.svc.cluster.local
+    DB_PORT: "3306"
+    DB_USER: edtech
+    DB_PASSWORD: edtech_password
+    DB_NAME: contentdb
+    OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector.monitoring.svc.cluster.local:4317
+  probes:
+    liveness:
+      path: /health
+    readiness:
+      path: /ready
+  hpa:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 5
+    targetCPUUtilizationPercentage: 70
+
+quizService:
+  enabled: true
+  replicas: 2
+  image:
+    repository: ghcr.io/vinoth-kanagaraj-14883/edtech-quiz-service
+    tag: latest
+  containerPort: 8004
+  service:
+    type: ClusterIP
+    port: 8004
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 400m
+      memory: 256Mi
+  env:
+    RACK_ENV: production
+    REDIS_URL: redis://redis.edtech.svc.cluster.local:6379
+    OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector.monitoring.svc.cluster.local:4317
+  probes:
+    liveness:
+      path: /health
+    readiness:
+      path: /health
+  hpa:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 4
+    targetCPUUtilizationPercentage: 70
+
+notificationService:
+  enabled: true
+  replicas: 2
+  image:
+    repository: ghcr.io/vinoth-kanagaraj-14883/edtech-notification-service
+    tag: latest
+  containerPort: 8005
+  service:
+    type: ClusterIP
+    port: 8005
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 400m
+      memory: 256Mi
+  env:
+    REDIS_URL: redis://redis.edtech.svc.cluster.local:6379
+    OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector.monitoring.svc.cluster.local:4317
+  probes:
+    liveness:
+      path: /health
+    readiness:
+      path: /health
+  hpa:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 4
+    targetCPUUtilizationPercentage: 70
+
+frontend:
+  enabled: true
+  replicas: 2
+  image:
+    repository: ghcr.io/vinoth-kanagaraj-14883/edtech-frontend
+    tag: latest
+  containerPort: 3000
+  service:
+    type: ClusterIP
+    port: 3000
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 400m
+      memory: 256Mi
+  env:
+    NEXT_PUBLIC_API_URL: http://api-gateway:8080
+    NODE_ENV: production
+  probes:
+    liveness:
+      path: /
+    readiness:
+      path: /
+  hpa:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 4
+    targetCPUUtilizationPercentage: 70
+
+ingress:
+  enabled: true
+  className: nginx
+  annotations: {}
+  hosts:
+    - host: edtech.local
+      paths:
+        - path: /
+          pathType: Prefix
+          service: frontend
+          port: 3000
+        - path: /api
+          pathType: Prefix
+          service: api-gateway
+          port: 8080

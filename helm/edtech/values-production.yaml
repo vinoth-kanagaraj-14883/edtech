@@ -1,0 +1,149 @@
+global:
+  environment: production
+  imagePullPolicy: IfNotPresent
+  jwtSecret: ${JWT_SECRET}
+  database:
+    postgres:
+      host: postgres-primary.edtech.svc.cluster.local
+      port: 5432
+      username: edtech
+      password: ${POSTGRES_PASSWORD}
+      userDatabase: userdb
+      courseDatabase: coursedb
+      storageSize: 50Gi
+    mysql:
+      host: mysql-primary.edtech.svc.cluster.local
+      port: 3306
+      username: edtech
+      password: ${MYSQL_PASSWORD}
+      database: contentdb
+      storageSize: 50Gi
+    redis:
+      url: redis://redis-master.edtech.svc.cluster.local:6379
+      password: ${REDIS_PASSWORD}
+      storageSize: 20Gi
+
+apiGateway:
+  replicas: 4
+  resources:
+    requests:
+      cpu: 250m
+      memory: 256Mi
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+  hpa:
+    enabled: true
+    minReplicas: 4
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 65
+
+userService:
+  replicas: 3
+  resources:
+    requests:
+      cpu: 250m
+      memory: 256Mi
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+  env:
+    ENVIRONMENT: production
+  hpa:
+    enabled: true
+    minReplicas: 3
+    maxReplicas: 8
+    targetCPUUtilizationPercentage: 65
+
+courseService:
+  replicas: 3
+  resources:
+    requests:
+      cpu: 300m
+      memory: 384Mi
+    limits:
+      cpu: 1200m
+      memory: 1Gi
+  hpa:
+    enabled: true
+    minReplicas: 3
+    maxReplicas: 8
+    targetCPUUtilizationPercentage: 65
+
+contentService:
+  replicas: 3
+  resources:
+    requests:
+      cpu: 250m
+      memory: 256Mi
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+  hpa:
+    enabled: true
+    minReplicas: 3
+    maxReplicas: 8
+    targetCPUUtilizationPercentage: 65
+
+quizService:
+  replicas: 3
+  resources:
+    requests:
+      cpu: 200m
+      memory: 256Mi
+    limits:
+      cpu: 800m
+      memory: 768Mi
+  hpa:
+    enabled: true
+    minReplicas: 3
+    maxReplicas: 6
+    targetCPUUtilizationPercentage: 65
+
+notificationService:
+  replicas: 3
+  resources:
+    requests:
+      cpu: 200m
+      memory: 256Mi
+    limits:
+      cpu: 800m
+      memory: 768Mi
+  hpa:
+    enabled: true
+    minReplicas: 3
+    maxReplicas: 6
+    targetCPUUtilizationPercentage: 65
+
+frontend:
+  replicas: 3
+  resources:
+    requests:
+      cpu: 150m
+      memory: 256Mi
+    limits:
+      cpu: 600m
+      memory: 512Mi
+  hpa:
+    enabled: true
+    minReplicas: 3
+    maxReplicas: 6
+    targetCPUUtilizationPercentage: 65
+
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/proxy-body-size: 10m
+  hosts:
+    - host: app.edtech.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+          service: frontend
+          port: 3000
+        - path: /api
+          pathType: Prefix
+          service: api-gateway
+          port: 8080

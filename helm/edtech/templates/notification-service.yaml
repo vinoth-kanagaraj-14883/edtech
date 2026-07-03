@@ -1,0 +1,51 @@
+{{- if .Values.notificationService.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: notification-service
+  labels:
+    {{- include "edtech.serviceLabels" (dict "context" . "name" "notification-service") | nindent 4 }}
+spec:
+  replicas: {{ .Values.notificationService.replicas }}
+  selector:
+    matchLabels:
+      {{- include "edtech.selectorLabels" (dict "Release" .Release "name" "notification-service") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "edtech.selectorLabels" (dict "Release" .Release "name" "notification-service") | nindent 8 }}
+    spec:
+      containers:
+        - name: notification-service
+          image: "{{ .Values.notificationService.image.repository }}:{{ .Values.notificationService.image.tag }}"
+          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          ports:
+            - containerPort: {{ .Values.notificationService.containerPort }}
+          env:
+            {{- include "edtech.renderEnv" .Values.notificationService.env | nindent 20 }}
+          resources:
+            {{- toYaml .Values.notificationService.resources | nindent 20 }}
+          livenessProbe:
+            httpGet:
+              path: {{ .Values.notificationService.probes.liveness.path }}
+              port: {{ .Values.notificationService.containerPort }}
+          readinessProbe:
+            httpGet:
+              path: {{ .Values.notificationService.probes.readiness.path }}
+              port: {{ .Values.notificationService.containerPort }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: notification-service
+  labels:
+    {{- include "edtech.serviceLabels" (dict "context" . "name" "notification-service") | nindent 4 }}
+spec:
+  type: {{ .Values.notificationService.service.type }}
+  selector:
+    {{- include "edtech.selectorLabels" (dict "Release" .Release "name" "notification-service") | nindent 4 }}
+  ports:
+    - name: http
+      port: {{ .Values.notificationService.service.port }}
+      targetPort: {{ .Values.notificationService.containerPort }}
+{{- end }}

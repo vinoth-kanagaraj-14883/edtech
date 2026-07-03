@@ -1,0 +1,69 @@
+groups:
+  - name: edtech-recording-rules
+    interval: 30s
+    rules:
+      - record: request_rate_5m
+        expr: |
+          sum by (job) (
+            rate({__name__=~"http_requests_total|http_server_requests_seconds_count|http_server_request_duration_seconds_count|http_request_duration_seconds_count|http_server_duration_milliseconds_count"}[5m])
+          )
+
+      - record: error_rate_5m
+        expr: |
+          (
+            sum by (job) (
+              rate({__name__=~"http_requests_total|http_server_requests_seconds_count|http_server_request_duration_seconds_count|http_request_duration_seconds_count|http_server_duration_milliseconds_count", status=~"5.."}[5m])
+            )
+            or
+            sum by (job) (
+              rate({__name__=~"http_requests_total|http_server_requests_seconds_count|http_server_request_duration_seconds_count|http_request_duration_seconds_count|http_server_duration_milliseconds_count", status_code=~"5.."}[5m])
+            )
+          ) / clamp_min(request_rate_5m, 0.001)
+
+      - record: p99_latency
+        expr: |
+          histogram_quantile(
+            0.99,
+            sum by (job, le) (
+              rate({__name__=~"http_server_requests_seconds_bucket|http_request_duration_seconds_bucket|http_server_request_duration_seconds_bucket"}[5m])
+            )
+          )
+          or
+          (
+            histogram_quantile(
+              0.99,
+              sum by (job, le) (
+                rate(http_server_duration_milliseconds_bucket[5m])
+              )
+            ) / 1000
+          )
+
+  - name: edtech-alerts
+    interval: 30s
+    rules:
+      - alert: HighErrorRate
+        expr: error_rate_5m > 0.05
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: High error rate detected for {{ $labels.job }}
+          description: Error rate has been above 5% for more than 5 minutes on {{ $labels.job }}.
+
+      - alert: HighP99Latency
+        expr: p99_latency > 2
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: High p99 latency detected for {{ $labels.job }}
+          description: p99 latency has exceeded 2 seconds for more than 5 minutes on {{ $labels.job }}.
+
+      - alert: ServiceDown
+        expr: up{job=~"api-gateway|user-service|course-service|content-service|quiz-service|notification-service|otel-collector|node-exporter|cadvisor|prometheus|alertmanager"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: Service {{ $labels.job }} is down
+          description: Prometheus has not been able to scrape {{ $labels.job }} for at least 2 minutes.

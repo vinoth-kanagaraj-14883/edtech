@@ -1,0 +1,35 @@
+{{- $services := list
+  (dict "name" "api-gateway" "config" .Values.apiGateway)
+  (dict "name" "user-service" "config" .Values.userService)
+  (dict "name" "course-service" "config" .Values.courseService)
+  (dict "name" "content-service" "config" .Values.contentService)
+  (dict "name" "quiz-service" "config" .Values.quizService)
+  (dict "name" "notification-service" "config" .Values.notificationService)
+  (dict "name" "frontend" "config" .Values.frontend)
+-}}
+{{- range $services }}
+{{- if .config.hpa.enabled }}
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ .name }}
+  labels:
+    {{- include "edtech.labels" $ | nindent 4 }}
+    app.kubernetes.io/name: {{ .name }}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ .name }}
+  minReplicas: {{ .config.hpa.minReplicas }}
+  maxReplicas: {{ .config.hpa.maxReplicas }}
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: {{ .config.hpa.targetCPUUtilizationPercentage }}
+{{- end }}
+{{- end }}

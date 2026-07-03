@@ -1,0 +1,47 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: course-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: course-service
+  template:
+    metadata:
+      labels:
+        app: course-service
+    spec:
+      containers:
+        - name: course-service
+          image: ghcr.io/vinoth-kanagaraj-14883/edtech-course-service:latest
+          ports:
+            - containerPort: 8002
+          env:
+            - name: DATABASE_URL
+              value: jdbc:postgresql://postgres.edtech.svc.cluster.local:5432/coursedb
+            - name: DATABASE_USERNAME
+              value: edtech
+            - name: DATABASE_PASSWORD
+              value: edtech_password
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: http://otel-collector.monitoring.svc.cluster.local:4317
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 8002
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8002
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: course-service
+spec:
+  selector:
+    app: course-service
+  ports:
+    - port: 8002
+      targetPort: 8002

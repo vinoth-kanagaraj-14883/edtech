@@ -1,0 +1,51 @@
+{{- if .Values.userService.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: user-service
+  labels:
+    {{- include "edtech.serviceLabels" (dict "context" . "name" "user-service") | nindent 4 }}
+spec:
+  replicas: {{ .Values.userService.replicas }}
+  selector:
+    matchLabels:
+      {{- include "edtech.selectorLabels" (dict "Release" .Release "name" "user-service") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "edtech.selectorLabels" (dict "Release" .Release "name" "user-service") | nindent 8 }}
+    spec:
+      containers:
+        - name: user-service
+          image: "{{ .Values.userService.image.repository }}:{{ .Values.userService.image.tag }}"
+          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          ports:
+            - containerPort: {{ .Values.userService.containerPort }}
+          env:
+            {{- include "edtech.renderEnv" .Values.userService.env | nindent 20 }}
+          resources:
+            {{- toYaml .Values.userService.resources | nindent 20 }}
+          livenessProbe:
+            httpGet:
+              path: {{ .Values.userService.probes.liveness.path }}
+              port: {{ .Values.userService.containerPort }}
+          readinessProbe:
+            httpGet:
+              path: {{ .Values.userService.probes.readiness.path }}
+              port: {{ .Values.userService.containerPort }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: user-service
+  labels:
+    {{- include "edtech.serviceLabels" (dict "context" . "name" "user-service") | nindent 4 }}
+spec:
+  type: {{ .Values.userService.service.type }}
+  selector:
+    {{- include "edtech.selectorLabels" (dict "Release" .Release "name" "user-service") | nindent 4 }}
+  ports:
+    - name: http
+      port: {{ .Values.userService.service.port }}
+      targetPort: {{ .Values.userService.containerPort }}
+{{- end }}

@@ -1,0 +1,51 @@
+{{- if .Values.contentService.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: content-service
+  labels:
+    {{- include "edtech.serviceLabels" (dict "context" . "name" "content-service") | nindent 4 }}
+spec:
+  replicas: {{ .Values.contentService.replicas }}
+  selector:
+    matchLabels:
+      {{- include "edtech.selectorLabels" (dict "Release" .Release "name" "content-service") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "edtech.selectorLabels" (dict "Release" .Release "name" "content-service") | nindent 8 }}
+    spec:
+      containers:
+        - name: content-service
+          image: "{{ .Values.contentService.image.repository }}:{{ .Values.contentService.image.tag }}"
+          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          ports:
+            - containerPort: {{ .Values.contentService.containerPort }}
+          env:
+            {{- include "edtech.renderEnv" .Values.contentService.env | nindent 20 }}
+          resources:
+            {{- toYaml .Values.contentService.resources | nindent 20 }}
+          livenessProbe:
+            httpGet:
+              path: {{ .Values.contentService.probes.liveness.path }}
+              port: {{ .Values.contentService.containerPort }}
+          readinessProbe:
+            httpGet:
+              path: {{ .Values.contentService.probes.readiness.path }}
+              port: {{ .Values.contentService.containerPort }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: content-service
+  labels:
+    {{- include "edtech.serviceLabels" (dict "context" . "name" "content-service") | nindent 4 }}
+spec:
+  type: {{ .Values.contentService.service.type }}
+  selector:
+    {{- include "edtech.selectorLabels" (dict "Release" .Release "name" "content-service") | nindent 4 }}
+  ports:
+    - name: http
+      port: {{ .Values.contentService.service.port }}
+      targetPort: {{ .Values.contentService.containerPort }}
+{{- end }}

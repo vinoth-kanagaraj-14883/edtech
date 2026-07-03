@@ -1,0 +1,51 @@
+{{- if .Values.courseService.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: course-service
+  labels:
+    {{- include "edtech.serviceLabels" (dict "context" . "name" "course-service") | nindent 4 }}
+spec:
+  replicas: {{ .Values.courseService.replicas }}
+  selector:
+    matchLabels:
+      {{- include "edtech.selectorLabels" (dict "Release" .Release "name" "course-service") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "edtech.selectorLabels" (dict "Release" .Release "name" "course-service") | nindent 8 }}
+    spec:
+      containers:
+        - name: course-service
+          image: "{{ .Values.courseService.image.repository }}:{{ .Values.courseService.image.tag }}"
+          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          ports:
+            - containerPort: {{ .Values.courseService.containerPort }}
+          env:
+            {{- include "edtech.renderEnv" .Values.courseService.env | nindent 20 }}
+          resources:
+            {{- toYaml .Values.courseService.resources | nindent 20 }}
+          livenessProbe:
+            httpGet:
+              path: {{ .Values.courseService.probes.liveness.path }}
+              port: {{ .Values.courseService.containerPort }}
+          readinessProbe:
+            httpGet:
+              path: {{ .Values.courseService.probes.readiness.path }}
+              port: {{ .Values.courseService.containerPort }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: course-service
+  labels:
+    {{- include "edtech.serviceLabels" (dict "context" . "name" "course-service") | nindent 4 }}
+spec:
+  type: {{ .Values.courseService.service.type }}
+  selector:
+    {{- include "edtech.selectorLabels" (dict "Release" .Release "name" "course-service") | nindent 4 }}
+  ports:
+    - name: http
+      port: {{ .Values.courseService.service.port }}
+      targetPort: {{ .Values.courseService.containerPort }}
+{{- end }}
