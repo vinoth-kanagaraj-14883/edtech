@@ -1,0 +1,151 @@
+---
+- name: Install MySQL dependencies
+  ansible.builtin.apt:
+    name:
+      - mysql-server
+      - python3-pymysql
+    state: present
+    update_cache: true
+  tags: ["install"]
+
+- name: Configure MySQL
+  ansible.builtin.template:
+    src: my.cnf.j2
+    dest: /etc/mysql/mysql.conf.d/mysqld.cnf
+    mode: "0644"
+  notify: Restart MySQL
+  tags: ["configure"]
+
+- name: Configure MySQL systemd override
+  ansible.builtin.template:
+    src: mysql.service.override.j2
+    dest: /etc/systemd/system/mysql.service.d/override.conf
+    mode: "0644"
+  notify: Restart MySQL
+  tags: ["configure"]
+
+- name: Ensure MySQL service started
+  ansible.builtin.systemd:
+    name: mysql
+    enabled: true
+    state: started
+  tags: ["restart"]
+
+- name: Remove anonymous users
+  community.mysql.mysql_user:
+    name: ''
+    host_all: true
+    state: absent
+    login_unix_socket: /var/run/mysqld/mysqld.sock
+  tags: ["configure"]
+
+- name: Remove test database
+  community.mysql.mysql_db:
+    name: test
+    state: absent
+    login_unix_socket: /var/run/mysqld/mysqld.sock
+  tags: ["configure"]
+
+- name: Create MySQL databases
+  community.mysql.mysql_db:
+    name: "{{ item }}"
+    state: present
+    login_unix_socket: /var/run/mysqld/mysqld.sock
+  loop: "{{ mysql_databases }}"
+  tags: ["configure"]
+
+- name: Create MySQL users
+  community.mysql.mysql_user:
+    name: "{{ item.name }}"
+    host: "%"
+    password: "{{ item.password }}"
+    priv: "{{ item.db }}.*:ALL"
+    state: present
+    login_unix_socket: /var/run/mysqld/mysqld.sock
+  loop: "{{ mysql_users }}"
+  tags: ["configure"]
+
+- name: Create MySQL exporter user
+  community.mysql.mysql_user:
+    name: "{{ mysql_exporter_user }}"
+    host: "127.0.0.1"
+    password: "{{ vault_mysql_exporter_password }}"
+    priv: "*.*:PROCESS,REPLICATION CLIENT,SELECT"
+    state: present
+    login_unix_socket: /var/run/mysqld/mysqld.sock
+  tags: ["configure"]
+
+- name: Allow MySQL port
+  community.general.ufw:
+    rule: allow
+    proto: tcp
+    port: "3306"
+  tags: ["configure"]
+
+- name: Download mysqld_exporter
+  ansible.builtin.get_url:
+    url: "https://github.com/prometheus/mysqld_exporter/releases/download/v{{ prometheus_exporters.mysqld_exporter_version }}/mysqld_exporter-{{ prometheus_exporters.mysqld_exporter_version }}.linux-amd64.tar.gz"
+    dest: "/tmp/mysqld_exporter-{{ prometheus_exporters.mysqld_exporter_version }}.tar.gz"
+    mode: "0644"
+  tags: ["install"]
+
+- name: Extract mysqld_exporter
+  ansible.builtin.unarchive:
+    src: "/tmp/mysqld_exporter-{{ prometheus_exporters.mysqld_exporter_version }}.tar.gz"
+    dest: /tmp
+    remote_src: true
+    creates: "/tmp/mysqld_exporter-{{ prometheus_exporters.mysqld_exporter_version }}.linux-amd64/mysqld_exporter"
+  tags: ["install"]
+
+- name: Install mysqld_exporter binary
+  ansible.builtin.copy:
+    src: "/tmp/mysqld_exporter-{{ prometheus_exporters.mysqld_exporter_version }}.linux-amd64/mysqld_exporter"
+    dest: "{{ mysql_exporter_bin }}"
+    mode: "0755"
+    remote_src: true
+  notify: Restart mysqld exporter
+  tags: ["install", "update"]
+
+- name: Install mysqld_exporter service
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/mysqld-exporter.service
+    mode: "0644"
+    content: |
+      [Unit]
+      Description=Prometheus MySQLd Exporter
+      After=network.target mysql.service
+
+      [Service]
+      Type=simple
+      EnvironmentFile=/etc/default/mysqld-exporter
+      ExecStart={{ mysql_exporter_bin }}
+      Restart=always
+
+      [Install]
+      WantedBy=multi-user.target
+  notify: Restart mysqld exporter
+  tags: ["configure"]
+
+- name: Install mysqld exporter environment file
+  ansible.builtin.copy:
+    dest: /etc/default/mysqld-exporter
+    mode: "0600"
+    content: |
+      DATA_SOURCE_NAME={{ mysql_exporter_user }}:{{ vault_mysql_exporter_password }}@(127.0.0.1:3306)/
+  notify: Restart mysqld exporter
+  tags: ["configure"]
+
+- name: Allow mysqld exporter port
+  community.general.ufw:
+    rule: allow
+    proto: tcp
+    port: "9104"
+    from_ip: "{{ prometheus_host }}"
+  tags: ["configure"]
+
+- name: Enable mysqld exporter
+  ansible.builtin.systemd:
+    name: mysqld-exporter
+    enabled: true
+    state: started
+  tags: ["restart"]

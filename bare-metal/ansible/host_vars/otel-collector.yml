@@ -1,0 +1,2 @@
+service_name: otel-collector
+service_port: 4317

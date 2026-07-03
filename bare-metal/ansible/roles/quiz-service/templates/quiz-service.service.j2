@@ -1,0 +1,28 @@
+[Unit]
+Description=EdTech Quiz Service
+After=network.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User={{ app_user }}
+Group={{ app_group }}
+WorkingDirectory={{ service_dir }}/repo/quiz-service
+EnvironmentFile={{ service_dir }}/.env
+ExecStart=/bin/bash -lc 'export RBENV_ROOT={{ app_base_dir }}/.rbenv; export PATH=$RBENV_ROOT/bin:$RBENV_ROOT/shims:$PATH; eval "$(rbenv init -)"; bundle exec puma -b tcp://0.0.0.0:8004 config.ru'
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=always
+RestartSec=5s
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=quiz-service
+TimeoutStopSec=30s
+KillMode=mixed
+KillSignal=SIGTERM
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ReadWritePaths={{ service_dir }} {{ log_dir }}
+
+[Install]
+WantedBy=multi-user.target

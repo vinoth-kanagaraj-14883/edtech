@@ -1,0 +1,13 @@
+[Unit]
+Description=Jaeger All-in-One
+After=network.target
+
+[Service]
+Type=simple
+EnvironmentFile=/etc/jaeger.env
+ExecStart={{ jaeger_bin }}
+Restart=always
+RestartSec=5s
+
+[Install]
+WantedBy=multi-user.target

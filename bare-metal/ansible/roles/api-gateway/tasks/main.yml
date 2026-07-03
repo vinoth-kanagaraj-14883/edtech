@@ -1,0 +1,73 @@
+---
+- name: Install api-gateway runtime packages
+  ansible.builtin.apt:
+    name: [golang-go, git]
+    state: present
+    update_cache: true
+  tags: ["install"]
+
+- name: Create api-gateway directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ app_user }}"
+    group: "{{ app_group }}"
+    mode: "0755"
+  loop: ["{{ service_dir }}", "{{ service_dir }}/repo", "{{ service_dir }}/bin"]
+  tags: ["install"]
+
+- name: Checkout source repository
+  ansible.builtin.git:
+    repo: "{{ repo_url }}"
+    dest: "{{ service_dir }}/repo"
+    version: "{{ repo_branch }}"
+    force: true
+  become_user: "{{ app_user }}"
+  tags: ["install", "update"]
+
+- name: Build api-gateway binary
+  ansible.builtin.command: go build -o "{{ service_dir }}/bin/api-gateway" main.go
+  args:
+    chdir: "{{ service_dir }}/repo/{{ repo_subdir }}"
+  become_user: "{{ app_user }}"
+  changed_when: false
+  tags: ["install", "update"]
+
+- name: Render api-gateway env
+  ansible.builtin.template:
+    src: api-gateway.env.j2
+    dest: "{{ service_dir }}/.env"
+    owner: "{{ app_user }}"
+    group: "{{ app_group }}"
+    mode: "0640"
+  notify: Restart api-gateway
+  tags: ["configure"]
+
+- name: Render api-gateway service
+  ansible.builtin.template:
+    src: api-gateway.service.j2
+    dest: /etc/systemd/system/api-gateway.service
+    mode: "0644"
+  notify: Restart api-gateway
+  tags: ["configure"]
+
+- name: Render api-gateway logrotate
+  ansible.builtin.template:
+    src: api-gateway.logrotate.j2
+    dest: /etc/logrotate.d/api-gateway
+    mode: "0644"
+  tags: ["configure"]
+
+- name: Allow api-gateway port
+  community.general.ufw:
+    rule: allow
+    proto: tcp
+    port: "8080"
+  tags: ["configure"]
+
+- name: Enable api-gateway
+  ansible.builtin.systemd:
+    name: api-gateway
+    state: started
+    enabled: true
+  tags: ["restart"]

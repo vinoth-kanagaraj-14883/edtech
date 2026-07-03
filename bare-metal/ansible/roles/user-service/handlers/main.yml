@@ -1,0 +1,7 @@
+---
+- name: Restart user-service
+  ansible.builtin.systemd:
+    name: user-service
+    state: restarted
+    enabled: true
+    daemon_reload: true

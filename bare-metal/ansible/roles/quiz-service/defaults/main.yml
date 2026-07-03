@@ -1,0 +1,2 @@
+service_dir: "{{ app_base_dir }}/quiz-service"
+repo_subdir: quiz-service

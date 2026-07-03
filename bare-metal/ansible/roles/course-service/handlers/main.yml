@@ -1,0 +1,7 @@
+---
+- name: Restart course-service
+  ansible.builtin.systemd:
+    name: course-service
+    state: restarted
+    enabled: true
+    daemon_reload: true

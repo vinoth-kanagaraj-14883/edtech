@@ -1,0 +1,2 @@
+service_name: prometheus
+service_port: 9090

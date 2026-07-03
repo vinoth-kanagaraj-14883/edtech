@@ -1,0 +1,7 @@
+---
+- name: Restart content-service
+  ansible.builtin.systemd:
+    name: content-service
+    state: restarted
+    enabled: true
+    daemon_reload: true

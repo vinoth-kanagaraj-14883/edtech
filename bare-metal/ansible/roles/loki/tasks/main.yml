@@ -1,0 +1,62 @@
+---
+- name: Create loki directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: "0755"
+  loop: [/etc/loki, /var/lib/loki]
+  tags: ["install"]
+
+- name: Download Loki
+  ansible.builtin.get_url:
+    url: "https://github.com/grafana/loki/releases/download/v{{ loki_version }}/loki-linux-amd64.zip"
+    dest: "/tmp/loki-{{ loki_version }}.zip"
+    mode: "0644"
+  tags: ["install"]
+
+- name: Extract Loki
+  ansible.builtin.unarchive:
+    src: "/tmp/loki-{{ loki_version }}.zip"
+    dest: /tmp
+    remote_src: true
+    creates: /tmp/loki-linux-amd64
+  tags: ["install"]
+
+- name: Install Loki binary
+  ansible.builtin.copy:
+    src: /tmp/loki-linux-amd64
+    dest: "{{ loki_bin }}"
+    remote_src: true
+    mode: "0755"
+  notify: Restart loki
+  tags: ["install", "update"]
+
+- name: Install Loki config
+  ansible.builtin.template:
+    src: loki-config.yml.j2
+    dest: "{{ loki_config }}"
+    mode: "0644"
+  notify: Restart loki
+  tags: ["configure"]
+
+- name: Install Loki service
+  ansible.builtin.template:
+    src: loki.service.j2
+    dest: /etc/systemd/system/loki.service
+    mode: "0644"
+  notify: Restart loki
+  tags: ["configure"]
+
+- name: Allow Loki port
+  community.general.ufw:
+    rule: allow
+    proto: tcp
+    port: "3100"
+  tags: ["configure"]
+
+- name: Enable Loki service
+  ansible.builtin.systemd:
+    name: loki
+    state: started
+    enabled: true
+  tags: ["restart"]

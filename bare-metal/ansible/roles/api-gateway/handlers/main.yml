@@ -1,0 +1,7 @@
+---
+- name: Restart api-gateway
+  ansible.builtin.systemd:
+    name: api-gateway
+    state: restarted
+    enabled: true
+    daemon_reload: true

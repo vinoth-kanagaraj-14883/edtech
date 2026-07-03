@@ -1,0 +1,7 @@
+---
+- name: Restart notification-service
+  ansible.builtin.systemd:
+    name: notification-service
+    state: restarted
+    enabled: true
+    daemon_reload: true

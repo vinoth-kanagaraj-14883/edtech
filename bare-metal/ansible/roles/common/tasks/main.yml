@@ -1,0 +1,76 @@
+---
+- name: Update apt cache
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 3600
+  tags: ["install"]
+
+- name: Install common packages
+  ansible.builtin.apt:
+    name: "{{ common_packages }}"
+    state: present
+  tags: ["install"]
+
+- name: Set timezone
+  community.general.timezone:
+    name: "{{ timezone }}"
+  tags: ["configure"]
+
+- name: Ensure application group exists
+  ansible.builtin.group:
+    name: "{{ app_group }}"
+    system: true
+  tags: ["configure"]
+
+- name: Ensure application user exists
+  ansible.builtin.user:
+    name: "{{ app_user }}"
+    group: "{{ app_group }}"
+    shell: /bin/bash
+    home: "{{ app_base_dir }}"
+    create_home: true
+    system: true
+  tags: ["configure"]
+
+- name: Ensure base directories exist
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ app_user }}"
+    group: "{{ app_group }}"
+    mode: "0755"
+  loop:
+    - "{{ app_base_dir }}"
+    - "{{ log_dir }}"
+  tags: ["configure"]
+
+- name: Apply sysctl tuning
+  ansible.posix.sysctl:
+    name: "{{ item.key }}"
+    value: "{{ item.value }}"
+    state: present
+    sysctl_set: true
+    reload: true
+  loop: "{{ sysctl_tuning | dict2items }}"
+  tags: ["configure"]
+
+- name: Enable UFW and allow SSH
+  community.general.ufw:
+    state: enabled
+    policy: deny
+    direction: incoming
+  tags: ["configure"]
+
+- name: Allow SSH
+  community.general.ufw:
+    rule: allow
+    port: "22"
+    proto: tcp
+  tags: ["configure"]
+
+- name: Ensure fail2ban is enabled
+  ansible.builtin.systemd:
+    name: fail2ban
+    state: started
+    enabled: true
+  tags: ["configure"]

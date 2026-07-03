@@ -1,0 +1,2 @@
+service_dir: "{{ app_base_dir }}/course-service"
+repo_subdir: course-service

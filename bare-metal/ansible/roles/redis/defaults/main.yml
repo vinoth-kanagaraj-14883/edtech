@@ -1,0 +1,4 @@
+redis_bind: "0.0.0.0"
+redis_port: 6379
+redis_maxmemory: "1gb"
+redis_exporter_bin: /usr/local/bin/redis_exporter

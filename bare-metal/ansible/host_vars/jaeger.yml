@@ -1,0 +1,2 @@
+service_name: jaeger
+service_port: 16686

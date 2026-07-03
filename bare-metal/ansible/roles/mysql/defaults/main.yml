@@ -1,0 +1,4 @@
+mysql_bind_address: "0.0.0.0"
+mysql_root_user: root
+mysql_exporter_user: mysqld_exporter
+mysql_exporter_bin: /usr/local/bin/mysqld_exporter
