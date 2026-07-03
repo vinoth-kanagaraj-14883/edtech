@@ -1,0 +1,57 @@
+---
+- name: Check if Site24x7 server agent is already installed
+  stat:
+    path: /opt/site24x7monagent/bin/monagent
+  register: agent_binary
+
+- name: Create temporary download directory
+  tempfile:
+    state: directory
+    prefix: site24x7_
+  register: tmp_dir
+  when: not agent_binary.stat.exists
+
+- name: Download Site24x7 Linux agent installer
+  get_url:
+    url: "https://staticdownloads.site24x7.com/server/Site24x7_Linux_64bit.install"
+    dest: "{{ tmp_dir.path }}/Site24x7_Linux_64bit.install"
+    mode: '0755'
+  when: not agent_binary.stat.exists
+
+- name: Install Site24x7 server monitoring agent
+  command: >
+    bash {{ tmp_dir.path }}/Site24x7_Linux_64bit.install
+    -i -key={{ site24x7_device_key }}
+    {% if site24x7_proxy_host != '' %}
+    -proxy-server={{ site24x7_proxy_host }}:{{ site24x7_proxy_port }}
+    {% endif %}
+  when: not agent_binary.stat.exists
+  notify: Restart site24x7 agent
+
+- name: Remove temporary installer files
+  file:
+    path: "{{ tmp_dir.path }}"
+    state: absent
+  when: not agent_binary.stat.exists
+
+- name: Configure proxy settings (if applicable)
+  template:
+    src: site24x7-agent-config.cfg.j2
+    dest: /opt/site24x7monagent/conf/agent.cfg
+    owner: root
+    group: root
+    mode: '0640'
+  when: site24x7_proxy_host != ''
+  notify: Restart site24x7 agent
+
+- name: Ensure site24x7monagent service is enabled and started
+  service:
+    name: site24x7monagent
+    state: started
+    enabled: true
+
+- name: Verify site24x7monagent is running
+  command: /opt/site24x7monagent/bin/monagent status
+  register: agent_status
+  changed_when: false
+  failed_when: "'running' not in agent_status.stdout | lower"

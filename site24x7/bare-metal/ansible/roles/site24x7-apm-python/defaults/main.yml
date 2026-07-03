@@ -1,0 +1,7 @@
+---
+site24x7_device_key: "REPLACE_WITH_YOUR_DEVICE_KEY"
+site24x7_apm_endpoint: "https://apmcollector.site24x7.com"
+site24x7_install_dir: "/opt/site24x7"
+site24x7_log_level: "info"
+site24x7_service_name: "edtech-user-service"
+site24x7_pip_executable: "pip3"

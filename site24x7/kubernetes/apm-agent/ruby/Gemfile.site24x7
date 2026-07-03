@@ -1,0 +1,20 @@
+# Gemfile.site24x7
+#
+# Site24x7 APM gem additions for quiz-service.
+# Merge these entries into quiz-service/Gemfile.
+#
+# Then run: bundle install
+
+source 'https://rubygems.org'
+
+# Site24x7 APM agent for Ruby
+# Auto-instruments Sinatra, Rack, MySQL2, Redis, Net::HTTP
+gem 'site24x7', '~> 1.0'
+
+# OpenTelemetry alternative (if using OTel-compatible mode)
+# gem 'opentelemetry-sdk'
+# gem 'opentelemetry-exporter-otlp'
+# gem 'opentelemetry-instrumentation-sinatra'
+# gem 'opentelemetry-instrumentation-mysql2'
+# gem 'opentelemetry-instrumentation-redis'
+# gem 'opentelemetry-instrumentation-net_http'

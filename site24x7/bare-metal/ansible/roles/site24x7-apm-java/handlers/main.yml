@@ -1,0 +1,4 @@
+---
+- name: Reload Java service
+  debug:
+    msg: "Java APM env file updated. Reload course-service: systemctl daemon-reload && systemctl restart course-service"

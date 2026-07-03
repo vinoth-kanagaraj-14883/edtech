@@ -1,0 +1,59 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+# This overlay patches the existing edtech deployments to inject Site24x7 APM
+# WITHOUT modifying the original k8s/ manifests.
+#
+# Apply: kubectl apply -k site24x7/kubernetes/patch-examples/
+#
+# Prerequisites:
+#   kubectl create secret generic site24x7-device-key \
+#     --from-literal=device-key=YOUR_DEVICE_KEY \
+#     --namespace=edtech
+
+namespace: edtech
+
+# No new resources — only patches applied to existing deployments
+resources: []
+
+patches:
+  - path: api-gateway-patch.yaml
+    target:
+      kind: Deployment
+      name: api-gateway
+      namespace: edtech
+
+  - path: user-service-patch.yaml
+    target:
+      kind: Deployment
+      name: user-service
+      namespace: edtech
+
+  - path: course-service-patch.yaml
+    target:
+      kind: Deployment
+      name: course-service
+      namespace: edtech
+
+  - path: content-service-patch.yaml
+    target:
+      kind: Deployment
+      name: content-service
+      namespace: edtech
+
+  - path: quiz-service-patch.yaml
+    target:
+      kind: Deployment
+      name: quiz-service
+      namespace: edtech
+
+  - path: notification-service-patch.yaml
+    target:
+      kind: Deployment
+      name: notification-service
+      namespace: edtech
+
+  - path: frontend-patch.yaml
+    target:
+      kind: Deployment
+      name: frontend
+      namespace: edtech

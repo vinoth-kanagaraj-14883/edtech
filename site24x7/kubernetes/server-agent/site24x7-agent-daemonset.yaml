@@ -1,0 +1,71 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: site24x7-server-agent
+  namespace: site24x7-monitoring
+  labels:
+    app: site24x7-server-agent
+    component: monitoring
+    app.kubernetes.io/managed-by: site24x7
+spec:
+  selector:
+    matchLabels:
+      app: site24x7-server-agent
+  template:
+    metadata:
+      labels:
+        app: site24x7-server-agent
+        component: monitoring
+    spec:
+      serviceAccountName: site24x7-agent
+      tolerations:
+        - operator: Exists  # Run on ALL nodes including control plane
+      hostPID: true
+      hostNetwork: true
+      hostIPC: true
+      containers:
+        - name: site24x7-agent
+          image: site24x7/linux-agent:latest
+          env:
+            - name: AGENT_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: site24x7-device-key
+                  key: device-key
+            - name: KUBERNETES_CLUSTER_NAME
+              value: "edtech-cluster"
+          volumeMounts:
+            - name: host-root
+              mountPath: /host
+              readOnly: true
+            - name: docker-sock
+              mountPath: /var/run/docker.sock
+            - name: proc
+              mountPath: /host/proc
+              readOnly: true
+            - name: sys
+              mountPath: /host/sys
+              readOnly: true
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi
+          securityContext:
+            privileged: true
+      volumes:
+        - name: host-root
+          hostPath:
+            path: /
+        - name: docker-sock
+          hostPath:
+            path: /var/run/docker.sock
+        - name: proc
+          hostPath:
+            path: /proc
+        - name: sys
+          hostPath:
+            path: /sys
+      terminationGracePeriodSeconds: 30

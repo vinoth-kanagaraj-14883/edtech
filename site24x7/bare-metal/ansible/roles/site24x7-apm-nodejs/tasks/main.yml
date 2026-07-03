@@ -1,0 +1,38 @@
+---
+- name: Install site24x7-apm npm package globally
+  npm:
+    name: site24x7-apm
+    global: true
+    state: present
+
+- name: Create Site24x7 install directory
+  file:
+    path: "{{ site24x7_install_dir }}"
+    state: directory
+    mode: '0755'
+
+- name: Write Node.js APM environment file
+  template:
+    src: nodejs-apm.env.j2
+    dest: "{{ site24x7_install_dir }}/nodejs-apm.env"
+    owner: root
+    group: root
+    mode: '0640'
+  notify: Reload Node.js service
+
+- name: Verify site24x7-apm npm package
+  command: npm list -g site24x7-apm --depth=0
+  register: npm_list
+  changed_when: false
+  failed_when: npm_list.rc != 0
+
+- name: Show installation result
+  debug:
+    msg: |
+      site24x7-apm npm package installed.
+      Env file written to {{ site24x7_install_dir }}/nodejs-apm.env.
+
+      To activate APM, add to the Node.js service systemd unit:
+        EnvironmentFile={{ site24x7_install_dir }}/nodejs-apm.env
+
+      Then require('site24x7-apm') as the FIRST line of your entry point.

@@ -1,0 +1,55 @@
+{
+  "_comment": "Site24x7 Notification Profiles — EdTech Platform",
+  "_note": "Use these as reference when creating notification profiles in the Site24x7 portal.",
+  "notificationProfiles": [
+    {
+      "name": "EdTech PagerDuty",
+      "description": "Route critical alerts to PagerDuty for on-call escalation",
+      "channels": [
+        {
+          "type": "pagerduty",
+          "integration_key": "REPLACE_WITH_PAGERDUTY_INTEGRATION_KEY",
+          "severity_mapping": {
+            "critical": "critical",
+            "warning": "warning",
+            "info": "info"
+          }
+        }
+      ],
+      "alert_after_n_failures": 1,
+      "notify_on_recovery": true
+    },
+    {
+      "name": "EdTech Slack",
+      "description": "Post alerts to Slack #alerts-edtech channel",
+      "channels": [
+        {
+          "type": "slack",
+          "webhook_url": "REPLACE_WITH_SLACK_WEBHOOK_URL",
+          "channel": "#alerts-edtech",
+          "notify_on": ["critical", "warning"],
+          "mention": "@here",
+          "message_format": "[Site24x7] {{ monitor_name }} is {{ status }} | {{ details }}"
+        }
+      ],
+      "alert_after_n_failures": 2,
+      "notify_on_recovery": true
+    },
+    {
+      "name": "EdTech Email",
+      "description": "Send alert emails to the engineering team",
+      "channels": [
+        {
+          "type": "email",
+          "recipients": [
+            "engineering@example.com",
+            "oncall@example.com"
+          ],
+          "notify_on": ["critical", "warning", "down"]
+        }
+      ],
+      "alert_after_n_failures": 3,
+      "notify_on_recovery": true
+    }
+  ]
+}

@@ -1,0 +1,41 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: site24x7-agent-config
+  namespace: site24x7-monitoring
+  labels:
+    app: site24x7-server-agent
+    app.kubernetes.io/managed-by: site24x7
+data:
+  # Site24x7 agent configuration
+  # The AGENT_KEY (device key) is provided via a Secret, not here.
+  agent.cfg: |
+    # Site24x7 Linux Agent Configuration
+    # This file is auto-generated — do not edit manually on the agent pod.
+
+    [agent]
+    # Kubernetes cluster name shown in Site24x7 portal
+    kubernetes_cluster_name=edtech-cluster
+
+    # Polling interval in seconds
+    poll_interval=60
+
+    # Enable Kubernetes monitoring (pod metrics, node metrics)
+    enable_kubernetes=true
+
+    # Enable Docker container monitoring
+    enable_docker=true
+
+    # Enable process monitoring
+    enable_process=true
+
+    [logging]
+    log_level=info
+    log_file=/var/log/site24x7/agent.log
+
+    [proxy]
+    # Uncomment and configure if your cluster requires a proxy to reach Site24x7
+    # proxy_host=
+    # proxy_port=
+    # proxy_user=
+    # proxy_password=

@@ -1,0 +1,5 @@
+---
+site24x7_device_key: "REPLACE_WITH_YOUR_DEVICE_KEY"
+site24x7_proxy_host: ""
+site24x7_proxy_port: ""
+site24x7_install_dir: "/opt/site24x7"

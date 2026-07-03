@@ -1,0 +1,27 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: site24x7-apm-config
+  namespace: edtech
+  labels:
+    app.kubernetes.io/managed-by: site24x7
+    component: apm-config
+data:
+  # Site24x7 APM collector endpoint
+  # The agent auto-detects this when the server agent is running on the host.
+  # Override only if using a custom proxy or a different data center.
+  SITE24X7_APM_ENDPOINT: "https://apmcollector.site24x7.com"
+
+  # Application identifier prefix — used in Site24x7 portal
+  SITE24X7_APP_PREFIX: "edtech"
+
+  # Enable/disable APM (set to "false" to disable without removing the config)
+  SITE24X7_APM_ENABLED: "true"
+
+  # Log level for the APM agent itself (info, debug, warn, error)
+  SITE24X7_LOG_LEVEL: "info"
+
+  # For Go services: Site24x7 accepts OpenTelemetry data directly.
+  # Point the existing OTEL exporter to Site24x7's OTel-compatible endpoint.
+  # No code changes are required if the service already uses otelhttp/otelsdk.
+  OTEL_EXPORTER_OTLP_ENDPOINT_SITE24X7: "https://otlp.site24x7.com:4317"

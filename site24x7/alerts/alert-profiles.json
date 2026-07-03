@@ -1,0 +1,109 @@
+{
+  "_comment": "Site24x7 Alert Profiles — EdTech Platform",
+  "_note": "Use these as reference when creating alert profiles in the Site24x7 portal.",
+  "alertProfiles": [
+    {
+      "name": "EdTech — APM Critical",
+      "description": "Alert on critical APM thresholds for all EdTech services",
+      "type": "apm",
+      "conditions": [
+        {
+          "metric": "response_time_ms",
+          "operator": "greater_than",
+          "threshold": 2000,
+          "duration_minutes": 2,
+          "severity": "critical"
+        },
+        {
+          "metric": "error_rate_percent",
+          "operator": "greater_than",
+          "threshold": 5,
+          "duration_minutes": 1,
+          "severity": "critical"
+        },
+        {
+          "metric": "apdex_score",
+          "operator": "less_than",
+          "threshold": 0.7,
+          "duration_minutes": 3,
+          "severity": "critical"
+        }
+      ],
+      "notificationProfiles": ["EdTech PagerDuty", "EdTech Slack"]
+    },
+    {
+      "name": "EdTech — APM Warning",
+      "description": "Warning-level APM thresholds",
+      "type": "apm",
+      "conditions": [
+        {
+          "metric": "response_time_ms",
+          "operator": "greater_than",
+          "threshold": 1000,
+          "duration_minutes": 5,
+          "severity": "warning"
+        },
+        {
+          "metric": "error_rate_percent",
+          "operator": "greater_than",
+          "threshold": 1,
+          "duration_minutes": 5,
+          "severity": "warning"
+        }
+      ],
+      "notificationProfiles": ["EdTech Slack"]
+    },
+    {
+      "name": "EdTech — Server Critical",
+      "description": "Alert on critical server resource thresholds",
+      "type": "server",
+      "conditions": [
+        {
+          "metric": "cpu_utilization_percent",
+          "operator": "greater_than",
+          "threshold": 90,
+          "duration_minutes": 5,
+          "severity": "critical"
+        },
+        {
+          "metric": "memory_utilization_percent",
+          "operator": "greater_than",
+          "threshold": 95,
+          "duration_minutes": 3,
+          "severity": "critical"
+        },
+        {
+          "metric": "disk_utilization_percent",
+          "operator": "greater_than",
+          "threshold": 90,
+          "duration_minutes": 10,
+          "severity": "critical"
+        }
+      ],
+      "notificationProfiles": ["EdTech PagerDuty", "EdTech Slack"]
+    },
+    {
+      "name": "EdTech — K8s Pod Restarts",
+      "description": "Alert on pod crash loops in the edtech namespace",
+      "type": "kubernetes",
+      "conditions": [
+        {
+          "metric": "pod_restart_count",
+          "operator": "greater_than",
+          "threshold": 5,
+          "duration_minutes": 10,
+          "namespace": "edtech",
+          "severity": "critical"
+        },
+        {
+          "metric": "pod_status",
+          "operator": "equals",
+          "value": "CrashLoopBackOff",
+          "namespace": "edtech",
+          "severity": "critical"
+        }
+      ],
+      "notificationProfiles": ["EdTech PagerDuty"]
+    }
+  ]
+}
