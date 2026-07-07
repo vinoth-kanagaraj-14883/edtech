@@ -1,0 +1,34 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: site24x7-kube-state-config
+  namespace: site24x7-monitoring
+  labels:
+    app.kubernetes.io/managed-by: site24x7
+    component: kube-state-integration
+data:
+  # Optional: configure Site24x7 to scrape kube-state-metrics
+  # if kube-state-metrics is already deployed in your cluster.
+  # This adds Kubernetes state data (desired vs actual replica counts, etc.)
+  # on top of the agent's native K8s integration.
+  kube-state.cfg: |
+    [kube_state_metrics]
+    # Set to true if kube-state-metrics is deployed
+    enabled=false
+
+    # kube-state-metrics service endpoint
+    # Typically: http://kube-state-metrics.kube-system.svc.cluster.local:8080/metrics
+    endpoint=http://kube-state-metrics.kube-system.svc.cluster.local:8080/metrics
+
+    # Scrape interval in seconds
+    scrape_interval=60
+
+    # Metrics to collect (empty = all)
+    metrics_allowlist=
+      kube_deployment_status_replicas_available,
+      kube_deployment_status_replicas_unavailable,
+      kube_pod_container_status_restarts_total,
+      kube_pod_status_phase,
+      kube_node_status_condition,
+      kube_horizontalpodautoscaler_status_current_replicas,
+      kube_horizontalpodautoscaler_spec_max_replicas

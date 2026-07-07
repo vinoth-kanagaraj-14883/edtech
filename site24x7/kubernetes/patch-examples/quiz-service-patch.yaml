@@ -1,0 +1,24 @@
+# Strategic merge patch — quiz-service (Ruby/Sinatra)
+# Adds Site24x7 APM env vars. Add the site24x7 gem and require it first (see apm-agent/ruby/).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: quiz-service
+  namespace: edtech
+spec:
+  template:
+    spec:
+      containers:
+        - name: quiz-service
+          env:
+            - name: SITE24X7_APM_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: site24x7-device-key
+                  key: device-key
+            - name: SITE24X7_SERVICE_NAME
+              value: "edtech-quiz-service"
+            - name: SITE24X7_APM_ENDPOINT
+              value: "https://apmcollector.site24x7.com"
+            - name: SITE24X7_LOG_LEVEL
+              value: "info"

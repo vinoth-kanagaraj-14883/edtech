@@ -1,0 +1,47 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: site24x7-agent
+  labels:
+    app: site24x7-server-agent
+    app.kubernetes.io/managed-by: site24x7
+rules:
+  # Node metrics
+  - apiGroups: [""]
+    resources: ["nodes", "nodes/metrics", "nodes/stats", "nodes/proxy"]
+    verbs: ["get", "list", "watch"]
+  # Pod and namespace visibility
+  - apiGroups: [""]
+    resources: ["pods", "namespaces", "services", "endpoints", "persistentvolumes", "persistentvolumeclaims"]
+    verbs: ["get", "list", "watch"]
+  # ReplicaSet, Deployment, DaemonSet, StatefulSet
+  - apiGroups: ["apps"]
+    resources: ["replicasets", "deployments", "daemonsets", "statefulsets"]
+    verbs: ["get", "list", "watch"]
+  # Events for alert correlation
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["get", "list", "watch"]
+  # Resource quotas and limits
+  - apiGroups: [""]
+    resources: ["resourcequotas", "limitranges"]
+    verbs: ["get", "list", "watch"]
+  # Non-resource URLs (metrics endpoint)
+  - nonResourceURLs: ["/metrics", "/metrics/cadvisor"]
+    verbs: ["get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: site24x7-agent
+  labels:
+    app: site24x7-server-agent
+    app.kubernetes.io/managed-by: site24x7
+subjects:
+  - kind: ServiceAccount
+    name: site24x7-agent
+    namespace: site24x7-monitoring
+roleRef:
+  kind: ClusterRole
+  name: site24x7-agent
+  apiGroup: rbac.authorization.k8s.io

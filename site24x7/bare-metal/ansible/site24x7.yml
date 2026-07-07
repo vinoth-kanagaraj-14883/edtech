@@ -1,0 +1,61 @@
+---
+# Site24x7 Observability Playbook
+# ================================
+# Run: ansible-playbook -i inventory.ini site24x7.yml -e "site24x7_device_key=YOUR_KEY"
+#
+# This playbook is COMPLETELY INDEPENDENT from the main bare-metal/ansible/site.yml.
+# It adds Site24x7 server agent + APM agents to existing service VMs.
+# No existing roles or tasks are modified.
+#
+# Prerequisites:
+#   - Ansible 2.12+
+#   - SSH access to all VMs (key-based auth recommended)
+#   - site24x7_device_key set (via -e flag, ansible-vault, or group_vars)
+
+- name: Install Site24x7 Server Agent on all VMs
+  hosts: all
+  become: true
+  vars_files:
+    - group_vars/site24x7.yml
+  roles:
+    - site24x7-server-agent
+
+- name: Configure Site24x7 APM for Go services
+  hosts: api_gateway,notification_service
+  become: true
+  vars_files:
+    - group_vars/site24x7.yml
+  roles:
+    - site24x7-apm-go
+
+- name: Configure Site24x7 APM for Python services
+  hosts: user_service
+  become: true
+  vars_files:
+    - group_vars/site24x7.yml
+  roles:
+    - site24x7-apm-python
+
+- name: Configure Site24x7 APM for Java services
+  hosts: course_service
+  become: true
+  vars_files:
+    - group_vars/site24x7.yml
+  roles:
+    - site24x7-apm-java
+
+- name: Configure Site24x7 APM for Node.js services
+  hosts: content_service,frontend_host
+  become: true
+  vars_files:
+    - group_vars/site24x7.yml
+  roles:
+    - site24x7-apm-nodejs
+
+- name: Configure Site24x7 APM for Ruby services
+  hosts: quiz_service
+  become: true
+  vars_files:
+    - group_vars/site24x7.yml
+  roles:
+    - site24x7-apm-ruby

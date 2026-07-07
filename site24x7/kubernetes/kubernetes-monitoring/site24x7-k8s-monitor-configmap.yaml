@@ -1,0 +1,41 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: site24x7-k8s-monitor-config
+  namespace: site24x7-monitoring
+  labels:
+    app.kubernetes.io/managed-by: site24x7
+    component: kubernetes-monitoring
+data:
+  # Kubernetes monitoring plugin configuration for Site24x7
+  # This configures what cluster-level metrics Site24x7 collects beyond node metrics.
+  k8s-monitor.cfg: |
+    [kubernetes]
+    cluster_name=edtech-cluster
+    namespace_filter=edtech,site24x7-monitoring
+
+    # Monitor these resource types
+    monitor_deployments=true
+    monitor_statefulsets=true
+    monitor_daemonsets=true
+    monitor_services=true
+    monitor_ingresses=true
+    monitor_persistent_volumes=true
+    monitor_hpa=true
+
+    # Alert thresholds
+    pod_restart_threshold=5
+    pod_restart_window_minutes=10
+    node_not_ready_alert=true
+    pending_pod_threshold_minutes=15
+
+    [namespaces]
+    # List of namespaces to monitor (comma-separated, empty = all)
+    include=edtech,site24x7-monitoring,default
+    exclude=kube-system,kube-public
+
+    [resources]
+    # CPU usage alert threshold (percent)
+    cpu_threshold=85
+    # Memory usage alert threshold (percent)
+    memory_threshold=90

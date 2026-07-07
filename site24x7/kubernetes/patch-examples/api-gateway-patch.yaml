@@ -1,0 +1,26 @@
+# Strategic merge patch — api-gateway (Go/Gin)
+# Adds Site24x7 APM env vars. No code changes needed — uses OTel endpoint redirect.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api-gateway
+  namespace: edtech
+spec:
+  template:
+    spec:
+      containers:
+        - name: api-gateway
+          env:
+            - name: SITE24X7_APM_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: site24x7-device-key
+                  key: device-key
+            - name: SITE24X7_SERVICE_NAME
+              value: "edtech-api-gateway"
+            - name: SITE24X7_APM_ENDPOINT
+              value: "https://apmcollector.site24x7.com"
+            # Redirect existing OTel exporter to Site24x7's OTel-compatible endpoint
+            # This works alongside the existing OTel collector if you use a multi-exporter setup.
+            - name: SITE24X7_OTLP_ENDPOINT
+              value: "otlp.site24x7.com:4317"

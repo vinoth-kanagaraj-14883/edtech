@@ -1,0 +1,4 @@
+---
+- name: Reload Python service
+  debug:
+    msg: "Python APM env file updated. Reload the user-service: systemctl restart user-service"

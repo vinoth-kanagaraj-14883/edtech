@@ -1,0 +1,40 @@
+---
+- name: Install site24x7 Ruby gem
+  gem:
+    name: site24x7
+    state: present
+    user_install: false
+
+- name: Create Site24x7 install directory
+  file:
+    path: "{{ site24x7_install_dir }}"
+    state: directory
+    mode: '0755'
+
+- name: Write Ruby APM environment file
+  template:
+    src: ruby-apm.env.j2
+    dest: "{{ site24x7_install_dir }}/ruby-apm.env"
+    owner: root
+    group: root
+    mode: '0640'
+  notify: Reload Ruby service
+
+- name: Verify site24x7 gem installation
+  command: gem list site24x7
+  register: gem_list
+  changed_when: false
+  failed_when: "'site24x7' not in gem_list.stdout"
+
+- name: Show installation result
+  debug:
+    msg: |
+      site24x7 gem installed: {{ gem_list.stdout }}
+      Env file written to {{ site24x7_install_dir }}/ruby-apm.env.
+
+      To activate APM in config.ru, add as the first line:
+        require 'site24x7'
+        Site24x7::APM.init(license_key: ENV['SITE24X7_APM_KEY'])
+
+      And add to the quiz-service systemd unit:
+        EnvironmentFile={{ site24x7_install_dir }}/ruby-apm.env

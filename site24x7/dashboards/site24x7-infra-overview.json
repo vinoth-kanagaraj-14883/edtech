@@ -1,0 +1,74 @@
+{
+  "_comment": "Site24x7 Infrastructure Overview Dashboard — Template Export",
+  "_note": "Import this JSON in Site24x7 portal: Reports → Dashboards → Import",
+  "dashboard": {
+    "name": "EdTech Infrastructure Overview",
+    "description": "Server health and resource metrics for all EdTech bare-metal VMs",
+    "layout": "grid",
+    "timeRange": "last_1_hour",
+    "refreshInterval": 60,
+    "widgets": [
+      {
+        "id": "i1",
+        "type": "server_summary",
+        "title": "All Servers Status",
+        "tags": ["edtech"],
+        "position": { "x": 0, "y": 0, "w": 8, "h": 3 }
+      },
+      {
+        "id": "i2",
+        "type": "server_cpu",
+        "title": "CPU Utilization — All VMs",
+        "servers": [
+          "api-gateway-vm",
+          "user-service-vm",
+          "course-service-vm",
+          "content-service-vm",
+          "quiz-service-vm",
+          "notification-service-vm",
+          "frontend-vm"
+        ],
+        "metric": "cpu_percent",
+        "thresholds": { "warning": 75, "critical": 90 },
+        "position": { "x": 0, "y": 3, "w": 12, "h": 4 }
+      },
+      {
+        "id": "i3",
+        "type": "server_memory",
+        "title": "Memory Utilization — All VMs",
+        "metric": "memory_percent",
+        "thresholds": { "warning": 80, "critical": 95 },
+        "position": { "x": 12, "y": 3, "w": 12, "h": 4 }
+      },
+      {
+        "id": "i4",
+        "type": "server_disk",
+        "title": "Disk Utilization — All VMs",
+        "metric": "disk_percent",
+        "thresholds": { "warning": 80, "critical": 90 },
+        "position": { "x": 0, "y": 7, "w": 12, "h": 4 }
+      },
+      {
+        "id": "i5",
+        "type": "server_network",
+        "title": "Network I/O — All VMs",
+        "metric": "network_bytes_per_sec",
+        "position": { "x": 12, "y": 7, "w": 12, "h": 4 }
+      },
+      {
+        "id": "i6",
+        "type": "process_monitor",
+        "title": "Key Process Status",
+        "processes": [
+          { "server": "api-gateway-vm", "process": "api-gateway" },
+          { "server": "user-service-vm", "process": "uvicorn" },
+          { "server": "course-service-vm", "process": "java" },
+          { "server": "content-service-vm", "process": "node" },
+          { "server": "quiz-service-vm", "process": "ruby" },
+          { "server": "notification-service-vm", "process": "notification-service" }
+        ],
+        "position": { "x": 0, "y": 11, "w": 24, "h": 4 }
+      }
+    ]
+  }
+}

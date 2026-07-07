@@ -1,0 +1,18 @@
+# Site24x7 APM — Python package requirements
+# Add these to user-service/requirements.txt or install separately
+#
+# Install: pip install -r requirements-site24x7.txt
+
+# Site24x7 Python APM agent
+# Provides auto-instrumentation for FastAPI, Flask, Django, SQLAlchemy, Redis, etc.
+site24x7-apm>=1.0.0
+
+# OpenTelemetry packages (if using OTel-compatible mode instead of native SDK)
+opentelemetry-api>=1.20.0
+opentelemetry-sdk>=1.20.0
+opentelemetry-exporter-otlp-proto-grpc>=1.20.0
+opentelemetry-instrumentation-fastapi>=0.41b0
+opentelemetry-instrumentation-sqlalchemy>=0.41b0
+opentelemetry-instrumentation-httpx>=0.41b0
+opentelemetry-instrumentation-redis>=0.41b0
+opentelemetry-instrumentation-psycopg2>=0.41b0

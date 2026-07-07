@@ -1,0 +1,83 @@
+{
+  "_comment": "Site24x7 APM Overview Dashboard — Template Export",
+  "_note": "Import this JSON in Site24x7 portal: Reports → Dashboards → Import",
+  "dashboard": {
+    "name": "EdTech APM Overview",
+    "description": "Application Performance Monitoring for all EdTech microservices",
+    "layout": "grid",
+    "timeRange": "last_1_hour",
+    "refreshInterval": 60,
+    "widgets": [
+      {
+        "id": "w1",
+        "type": "apm_response_time",
+        "title": "Average Response Time — All Services",
+        "services": [
+          "edtech-api-gateway",
+          "edtech-user-service",
+          "edtech-course-service",
+          "edtech-content-service",
+          "edtech-quiz-service",
+          "edtech-notification-service",
+          "edtech-frontend"
+        ],
+        "metric": "avg_response_time",
+        "unit": "ms",
+        "thresholds": {
+          "warning": 1000,
+          "critical": 2000
+        },
+        "position": { "x": 0, "y": 0, "w": 12, "h": 4 }
+      },
+      {
+        "id": "w2",
+        "type": "apm_throughput",
+        "title": "Requests Per Minute — All Services",
+        "services": [
+          "edtech-api-gateway",
+          "edtech-user-service",
+          "edtech-course-service",
+          "edtech-content-service",
+          "edtech-quiz-service",
+          "edtech-notification-service"
+        ],
+        "metric": "requests_per_minute",
+        "position": { "x": 12, "y": 0, "w": 12, "h": 4 }
+      },
+      {
+        "id": "w3",
+        "type": "apm_error_rate",
+        "title": "Error Rate (%) — All Services",
+        "services": [
+          "edtech-api-gateway",
+          "edtech-user-service",
+          "edtech-course-service",
+          "edtech-content-service",
+          "edtech-quiz-service",
+          "edtech-notification-service",
+          "edtech-frontend"
+        ],
+        "metric": "error_rate_percent",
+        "thresholds": {
+          "warning": 1,
+          "critical": 5
+        },
+        "position": { "x": 0, "y": 4, "w": 12, "h": 4 }
+      },
+      {
+        "id": "w4",
+        "type": "apm_slowest_transactions",
+        "title": "Slowest Transactions (Top 10)",
+        "services": "all",
+        "limit": 10,
+        "position": { "x": 12, "y": 4, "w": 12, "h": 4 }
+      },
+      {
+        "id": "w5",
+        "type": "apm_service_map",
+        "title": "Service Dependency Map",
+        "position": { "x": 0, "y": 8, "w": 24, "h": 6 }
+      }
+    ]
+  }
+}

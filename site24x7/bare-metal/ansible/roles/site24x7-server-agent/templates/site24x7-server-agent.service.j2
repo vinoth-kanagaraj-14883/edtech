@@ -1,0 +1,14 @@
+[Unit]
+Description=Site24x7 Monitoring Agent
+After=network.target
+
+[Service]
+Type=forking
+ExecStart=/opt/site24x7monagent/bin/monagent start
+ExecStop=/opt/site24x7monagent/bin/monagent stop
+PIDFile=/var/run/site24x7monagent.pid
+Restart=on-failure
+RestartSec=10s
+
+[Install]
+WantedBy=multi-user.target

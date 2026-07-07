@@ -1,0 +1,61 @@
+{
+  "_comment": "Site24x7 On-Call Schedule — EdTech Platform",
+  "_note": "Use this as reference when creating on-call schedules in the Site24x7 portal.",
+  "onCallSchedules": [
+    {
+      "name": "EdTech Engineering On-Call",
+      "description": "Primary on-call rotation for EdTech platform",
+      "timezone": "UTC",
+      "rotation": {
+        "type": "weekly",
+        "handoff_time": "Monday 09:00 UTC"
+      },
+      "participants": [
+        {
+          "name": "Engineer 1",
+          "email": "engineer1@example.com",
+          "phone": "+1-555-0001"
+        },
+        {
+          "name": "Engineer 2",
+          "email": "engineer2@example.com",
+          "phone": "+1-555-0002"
+        },
+        {
+          "name": "Engineer 3",
+          "email": "engineer3@example.com",
+          "phone": "+1-555-0003"
+        }
+      ],
+      "escalationPolicy": {
+        "name": "EdTech P1 Escalation",
+        "levels": [
+          {
+            "level": 1,
+            "notify_after_minutes": 0,
+            "channels": ["email", "sms"],
+            "notify": "on_call_primary"
+          },
+          {
+            "level": 2,
+            "notify_after_minutes": 15,
+            "channels": ["phone"],
+            "notify": "on_call_primary"
+          },
+          {
+            "level": 3,
+            "notify_after_minutes": 30,
+            "channels": ["email", "sms", "phone"],
+            "notify": "on_call_secondary"
+          },
+          {
+            "level": 4,
+            "notify_after_minutes": 60,
+            "channels": ["email"],
+            "notify": "engineering_manager"
+          }
+        ]
+      }
+    }
+  ]
+}

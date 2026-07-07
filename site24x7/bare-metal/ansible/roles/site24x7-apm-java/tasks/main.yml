@@ -1,0 +1,40 @@
+---
+- name: Create Site24x7 install directory
+  file:
+    path: "{{ site24x7_install_dir }}"
+    state: directory
+    mode: '0755'
+
+- name: Download Site24x7 Java APM agent JAR
+  get_url:
+    url: "https://staticdownloads.site24x7.com/APM/Java/site24x7-java-agent.jar"
+    dest: "{{ site24x7_install_dir }}/apm-agent.jar"
+    mode: '0644'
+  register: jar_download
+
+- name: Write Java APM environment file
+  template:
+    src: java-apm.env.j2
+    dest: "{{ site24x7_install_dir }}/java-apm.env"
+    owner: root
+    group: root
+    mode: '0640'
+  notify: Reload Java service
+
+- name: Verify Java APM agent JAR exists
+  stat:
+    path: "{{ site24x7_install_dir }}/apm-agent.jar"
+  register: jar_stat
+  failed_when: not jar_stat.stat.exists
+
+- name: Show installation result
+  debug:
+    msg: |
+      Site24x7 Java APM agent installed at {{ site24x7_install_dir }}/apm-agent.jar
+      (size: {{ jar_stat.stat.size }} bytes)
+
+      To activate APM, add to the course-service systemd unit:
+        EnvironmentFile={{ site24x7_install_dir }}/java-apm.env
+
+      This sets JAVA_TOOL_OPTIONS=-javaagent:{{ site24x7_install_dir }}/apm-agent.jar
+      Then run: systemctl daemon-reload && systemctl restart course-service
