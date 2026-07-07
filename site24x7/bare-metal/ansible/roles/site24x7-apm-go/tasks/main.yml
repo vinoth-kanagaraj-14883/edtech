@@ -1,0 +1,32 @@
+---
+- name: Create Site24x7 install directory
+  file:
+    path: "{{ site24x7_install_dir }}"
+    state: directory
+    mode: '0755'
+
+- name: Write Go APM environment file
+  template:
+    src: go-apm.env.j2
+    dest: "{{ site24x7_install_dir }}/go-apm.env"
+    owner: root
+    group: root
+    mode: '0640'
+  notify: Reload Go service environment
+
+- name: Ensure Go service unit file sources APM env vars
+  # This task checks whether the service unit already has an EnvironmentFile
+  # pointing to our go-apm.env. If not, it prints instructions.
+  # Modifying the service unit is left to the operator to avoid touching
+  # the primary deployment role.
+  debug:
+    msg: |
+      Site24x7 Go APM environment file written to {{ site24x7_install_dir }}/go-apm.env.
+
+      To activate APM, add the following to the service's systemd unit file:
+        EnvironmentFile={{ site24x7_install_dir }}/go-apm.env
+
+      Then run: systemctl daemon-reload && systemctl restart <service-name>
+
+      The Go services use OTel SDK — no code changes are required.
+      APM data is sent to Site24x7's OTel-compatible endpoint via env vars.

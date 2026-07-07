@@ -1,0 +1,33 @@
+---
+- name: Install site24x7-apm Python package and dependencies
+  # Packages are installed from requirements-site24x7.txt which pins minimum versions.
+  # This ensures reproducible deployments. To upgrade, update requirements-site24x7.txt.
+  pip:
+    requirements: "{{ site24x7_python_requirements_file }}"
+    state: present
+    executable: "{{ site24x7_pip_executable }}"
+
+- name: Create Site24x7 install directory
+  file:
+    path: "{{ site24x7_install_dir }}"
+    state: directory
+    mode: '0755'
+
+- name: Write Python APM environment file
+  template:
+    src: python-apm.env.j2
+    dest: "{{ site24x7_install_dir }}/python-apm.env"
+    owner: root
+    group: root
+    mode: '0640'
+  notify: Reload Python service
+
+- name: Verify site24x7-apm package installation
+  command: "{{ site24x7_pip_executable }} show site24x7-apm"
+  register: pip_show
+  changed_when: false
+  failed_when: pip_show.rc != 0
+
+- name: Show installation result
+  debug:
+    msg: "site24x7-apm installed: {{ pip_show.stdout_lines[0] }}"

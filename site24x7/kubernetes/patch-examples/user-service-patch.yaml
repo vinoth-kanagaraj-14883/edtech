@@ -1,0 +1,24 @@
+# Strategic merge patch — user-service (Python/FastAPI)
+# Adds Site24x7 APM env vars. Install site24x7-apm and call init() (see apm-agent/python/).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: user-service
+  namespace: edtech
+spec:
+  template:
+    spec:
+      containers:
+        - name: user-service
+          env:
+            - name: SITE24X7_APM_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: site24x7-device-key
+                  key: device-key
+            - name: SITE24X7_SERVICE_NAME
+              value: "edtech-user-service"
+            - name: SITE24X7_APM_ENDPOINT
+              value: "https://apmcollector.site24x7.com"
+            - name: SITE24X7_LOG_LEVEL
+              value: "info"

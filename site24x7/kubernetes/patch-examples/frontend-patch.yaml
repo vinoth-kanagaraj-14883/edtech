@@ -1,0 +1,30 @@
+# Strategic merge patch — frontend (Next.js 14)
+# Adds Site24x7 APM env vars. Use the instrumentation.ts hook for server-side APM.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend
+  namespace: edtech
+spec:
+  template:
+    spec:
+      containers:
+        - name: frontend
+          env:
+            - name: SITE24X7_APM_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: site24x7-device-key
+                  key: device-key
+            - name: SITE24X7_SERVICE_NAME
+              value: "edtech-frontend"
+            - name: SITE24X7_APM_ENDPOINT
+              value: "https://apmcollector.site24x7.com"
+            - name: SITE24X7_LOG_LEVEL
+              value: "info"
+            # Expose to Next.js public env (for browser-side monitoring, if needed)
+            - name: NEXT_PUBLIC_SITE24X7_RUM_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: site24x7-device-key
+                  key: device-key

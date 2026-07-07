@@ -1,0 +1,4 @@
+---
+- name: Reload Ruby service
+  debug:
+    msg: "Ruby APM env file updated. Reload the service: systemctl restart quiz-service"

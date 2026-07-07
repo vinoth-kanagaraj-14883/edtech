@@ -1,0 +1,4 @@
+---
+- name: Reload Node.js service
+  debug:
+    msg: "Node.js APM env file updated. Reload the service: systemctl restart content-service"

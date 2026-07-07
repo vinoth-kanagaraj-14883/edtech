@@ -1,0 +1,18 @@
+# Site24x7 APM — Node.js package requirements
+# Add these to content-service/package.json or install separately
+#
+# Install: npm install site24x7-apm
+# Or: yarn add site24x7-apm
+
+# npm package name
+site24x7-apm
+
+# Note: site24x7-apm includes OpenTelemetry dependencies.
+# If the service already uses OTel, you can alternatively configure
+# the existing OTel SDK to export to Site24x7's OTLP endpoint:
+#
+#   npm install @opentelemetry/exporter-trace-otlp-grpc
+#
+# Then set env vars:
+#   OTEL_EXPORTER_OTLP_ENDPOINT=https://otlp.site24x7.com:4317
+#   OTEL_EXPORTER_OTLP_HEADERS=device-key=YOUR_KEY

@@ -1,0 +1,4 @@
+---
+- name: Reload Go service environment
+  debug:
+    msg: "Go APM env file updated. Reload the relevant Go service manually or via its own role."

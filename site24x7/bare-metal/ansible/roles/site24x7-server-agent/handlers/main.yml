@@ -1,0 +1,5 @@
+---
+- name: Restart site24x7 agent
+  service:
+    name: site24x7monagent
+    state: restarted
