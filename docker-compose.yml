@@ -19,7 +19,7 @@ services:
   mysql:
     image: mysql:8.4
     container_name: edtech-mysql
-    command: ["--default-authentication-plugin=mysql_native_password"]
+    command: ["--mysql-native-******"]
     environment:
       MYSQL_ROOT_PASSWORD: root_password
       MYSQL_DATABASE: ${MYSQL_DB:-edtech}
@@ -29,6 +29,7 @@ services:
       - "${MYSQL_PORT:-3306}:3306"
     volumes:
       - mysql-data:/var/lib/mysql
+      - ./mysql-init:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -proot_password"]
       interval: 10s
@@ -57,7 +58,7 @@ services:
       PORT: 8080
       REDIS_ADDR: redis:6379
       REDIS_PASSWORD: ${REDIS_PASSWORD:-}
-      OTEL_EXPORTER_OTLP_ENDPOINT: otel-collector:4317
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
       JWT_HMAC_SECRET: ${JWT_SECRET:-your-super-secret-jwt-key-change-in-production}
       USER_SERVICE_URL: ${USER_SERVICE_URL:-http://user-service:8001}
       COURSE_SERVICE_URL: ${COURSE_SERVICE_URL:-http://course-service:8002}
@@ -88,7 +89,7 @@ services:
       DATABASE_URL: postgresql://edtech:${POSTGRES_PASSWORD:-edtech_password}@postgres:5432/userdb
       JWT_SECRET_KEY: ${JWT_SECRET:-your-super-secret-jwt-key-change-in-production}
       ENVIRONMENT: development
-      OTLP_ENDPOINT: otel-collector:4317
+      OTLP_ENDPOINT: ${OTLP_ENDPOINT:-}
     ports:
       - "8001:8001"
     depends_on:
@@ -103,7 +104,7 @@ services:
       DATABASE_URL: jdbc:postgresql://postgres:5432/coursedb
       DATABASE_USERNAME: ${POSTGRES_USER:-edtech}
       DATABASE_PASSWORD: ${POSTGRES_PASSWORD:-edtech_password}
-      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
     ports:
       - "8002:8002"
     depends_on:
@@ -121,7 +122,7 @@ services:
       DB_USER: ${MYSQL_USER:-edtech}
       DB_PASSWORD: ${MYSQL_PASSWORD:-edtech_password}
       DB_NAME: contentdb
-      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
     ports:
       - "8003:8003"
     depends_on:
@@ -135,7 +136,7 @@ services:
     environment:
       PORT: 8004
       DATABASE_URL: mysql2://edtech:${MYSQL_PASSWORD:-edtech_password}@mysql:3306/quizdb
-      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
     ports:
       - "8004:8004"
     depends_on:
@@ -150,7 +151,7 @@ services:
       PORT: 8005
       REDIS_ADDR: redis:6379
       REDIS_PASSWORD: ${REDIS_PASSWORD:-}
-      OTEL_EXPORTER_OTLP_ENDPOINT: otel-collector:4317
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
     ports:
       - "8005:8005"
     depends_on:
