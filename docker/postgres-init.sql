@@ -1,4 +1,3 @@
-CREATE USER edtech WITH PASSWORD 'edtech';
 CREATE DATABASE userdb OWNER edtech;
 CREATE DATABASE coursedb OWNER edtech;
 GRANT ALL PRIVILEGES ON DATABASE userdb TO edtech;
