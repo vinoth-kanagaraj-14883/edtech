@@ -24,8 +24,7 @@ def upgrade() -> None:
     user_role.create(op.get_bind(), checkfirst=True)
 
     # Create table only if it doesn't exist - use checkfirst via raw SQL for safety
-    conn = op.get_bind()
-    inspector = sa.inspect(conn)
+    inspector = sa.inspect(op.get_bind())
     if 'users' not in inspector.get_table_names():
         op.create_table(
             'users',
@@ -33,7 +32,7 @@ def upgrade() -> None:
             sa.Column('email', sa.String(length=255), nullable=False),
             sa.Column('hashed_password', sa.String(length=255), nullable=False),
             sa.Column('full_name', sa.String(length=255), nullable=False),
-            sa.Column('role', postgresql.ENUM('student', 'instructor', 'admin', name='user_role', create_type=False), nullable=False, server_default=sa.text("'student'::user_role")),
+            sa.Column('role', user_role, nullable=False, server_default=sa.text("'student'::user_role")),
             sa.Column('is_active', sa.Boolean(), nullable=False, server_default=sa.text('true')),
             sa.Column('created_at', sa.DateTime(timezone=True), nullable=False, server_default=sa.text('CURRENT_TIMESTAMP')),
             sa.Column('updated_at', sa.DateTime(timezone=True), nullable=False, server_default=sa.text('CURRENT_TIMESTAMP')),
