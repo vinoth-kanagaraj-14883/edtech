@@ -22,7 +22,10 @@ COPY --from=builder /opt/venv /opt/venv
 COPY . .
 RUN chown -R app:app /app /home/app
 
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh && chown app:app /entrypoint.sh
+
 USER app
 EXPOSE 8001
 
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8001"]
+CMD ["/entrypoint.sh"]
