@@ -17,7 +17,7 @@ down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
-user_role = postgresql.ENUM('student', 'instructor', 'admin', name='user_role')
+user_role = postgresql.ENUM('student', 'instructor', 'admin', name='user_role', create_type=False)
 
 
 def upgrade() -> None:
