@@ -1,0 +1,52 @@
+---
+# Site24x7 Configuration Variables
+# ==================================
+# Get your device key from: https://www.site24x7.com/app/client#/admin/inventory/devices
+#
+# SECURITY: Never commit a real device key.
+# Use ansible-vault to encrypt it:
+#   ansible-vault encrypt_string 'YOUR_KEY' --name 'site24x7_device_key'
+# Paste the encrypted value below and run with: --ask-vault-pass
+
+site24x7_device_key: "REPLACE_WITH_YOUR_DEVICE_KEY"  # <-- Use ansible-vault
+
+# Agent versions
+site24x7_agent_version: "latest"
+site24x7_java_apm_version: "latest"
+
+# APM Application name prefix (shown in Site24x7 portal)
+site24x7_app_name: "edtech"
+
+# Site24x7 APM collector endpoint (auto-detected when server agent is running)
+site24x7_apm_endpoint: "https://apmcollector.site24x7.com"
+
+# Site24x7 OTel-compatible endpoint (for Go services)
+site24x7_otlp_endpoint: "otlp.site24x7.com:4317"
+
+# Installation directory
+site24x7_install_dir: "/opt/site24x7"
+
+# Proxy settings (leave empty strings if not needed)
+site24x7_proxy_host: ""
+site24x7_proxy_port: ""
+site24x7_proxy_user: ""
+site24x7_proxy_password: ""
+
+# Log level for APM agents (info, debug, warn, error)
+site24x7_log_level: "info"
+
+# Alert thresholds (used when configuring alert profiles in the portal)
+site24x7_cpu_threshold: 85
+site24x7_memory_threshold: 90
+site24x7_disk_threshold: 85
+site24x7_response_time_threshold: 2000  # ms
+
+# Service names (override per-host if needed)
+site24x7_service_names:
+  api_gateway: "edtech-api-gateway"
+  user_service: "edtech-user-service"
+  course_service: "edtech-course-service"
+  content_service: "edtech-content-service"
+  quiz_service: "edtech-quiz-service"
+  notification_service: "edtech-notification-service"
+  frontend: "edtech-frontend"

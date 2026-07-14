@@ -1,0 +1,20 @@
+# Site24x7 sensitive files — never commit these
+*.key
+vault.yml
+.env.site24x7
+site24x7-device-key.txt
+*-device-key.yaml
+*-device-key.yml
+
+# Exclude actual secret files (only .example files are tracked)
+site24x7-agent-secret.yaml
+apm-device-key-secret.yaml
+
+# Ansible vault files
+.vault_pass
+vault_password_file
+
+# Editor artifacts
+*.swp
+*.swo
+.DS_Store

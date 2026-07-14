@@ -10,7 +10,7 @@ services:
       - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
-      - ./postgres-init:/docker-entrypoint-initdb.d:ro
+      - ./docker/postgres-init.sql:/docker-entrypoint-initdb.d/10-postgres-init.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-edtech} -d ${POSTGRES_DB:-edtech}"]
       interval: 10s
@@ -168,7 +168,6 @@ services:
       API_URL: http://api-gateway:8080
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8080}
       NEXT_PUBLIC_OTEL_SERVICE_NAME: edtech-frontend
-      NEXT_PUBLIC_OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: http://localhost:4318/v1/traces
     ports:
       - "3000:3000"
     depends_on:

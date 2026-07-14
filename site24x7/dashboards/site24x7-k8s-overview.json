@@ -1,0 +1,69 @@
+{
+  "_comment": "Site24x7 Kubernetes Overview Dashboard — Template Export",
+  "_note": "Import this JSON in Site24x7 portal: Reports → Dashboards → Import",
+  "dashboard": {
+    "name": "EdTech Kubernetes Overview",
+    "description": "Kubernetes cluster health and resource utilization for edtech-cluster",
+    "layout": "grid",
+    "timeRange": "last_1_hour",
+    "refreshInterval": 60,
+    "cluster": "edtech-cluster",
+    "widgets": [
+      {
+        "id": "k1",
+        "type": "k8s_cluster_summary",
+        "title": "Cluster Summary — edtech-cluster",
+        "cluster": "edtech-cluster",
+        "position": { "x": 0, "y": 0, "w": 6, "h": 3 }
+      },
+      {
+        "id": "k2",
+        "type": "k8s_node_health",
+        "title": "Node Health",
+        "cluster": "edtech-cluster",
+        "position": { "x": 6, "y": 0, "w": 6, "h": 3 }
+      },
+      {
+        "id": "k3",
+        "type": "k8s_pod_status",
+        "title": "Pod Status by Namespace",
+        "cluster": "edtech-cluster",
+        "namespaces": ["edtech", "site24x7-monitoring"],
+        "position": { "x": 12, "y": 0, "w": 12, "h": 3 }
+      },
+      {
+        "id": "k4",
+        "type": "k8s_cpu_utilization",
+        "title": "CPU Utilization — All Nodes",
+        "cluster": "edtech-cluster",
+        "metric": "cpu_percent",
+        "position": { "x": 0, "y": 3, "w": 12, "h": 4 }
+      },
+      {
+        "id": "k5",
+        "type": "k8s_memory_utilization",
+        "title": "Memory Utilization — All Nodes",
+        "cluster": "edtech-cluster",
+        "metric": "memory_percent",
+        "position": { "x": 12, "y": 3, "w": 12, "h": 4 }
+      },
+      {
+        "id": "k6",
+        "type": "k8s_deployment_status",
+        "title": "Deployment Status — edtech namespace",
+        "cluster": "edtech-cluster",
+        "namespace": "edtech",
+        "position": { "x": 0, "y": 7, "w": 24, "h": 4 }
+      },
+      {
+        "id": "k7",
+        "type": "k8s_events",
+        "title": "Recent Kubernetes Events",
+        "cluster": "edtech-cluster",
+        "severity": ["Warning", "Normal"],
+        "limit": 20,
+        "position": { "x": 0, "y": 11, "w": 24, "h": 4 }
+      }
+    ]
+  }
+}
