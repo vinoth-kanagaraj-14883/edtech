@@ -17,30 +17,36 @@ down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
-user_role = postgresql.ENUM('student', 'instructor', 'admin', name='user_role', create_type=False)
-
 
 def upgrade() -> None:
+    # Create the enum type only if it doesn't already exist
+    user_role = postgresql.ENUM('student', 'instructor', 'admin', name='user_role', create_type=False)
     user_role.create(op.get_bind(), checkfirst=True)
-    op.create_table(
-        'users',
-        sa.Column('id', postgresql.UUID(as_uuid=True), nullable=False),
-        sa.Column('email', sa.String(length=255), nullable=False),
-        sa.Column('hashed_password', sa.String(length=255), nullable=False),
-        sa.Column('full_name', sa.String(length=255), nullable=False),
-        sa.Column('role', user_role, nullable=False, server_default=sa.text("'student'::user_role")),
-        sa.Column('is_active', sa.Boolean(), nullable=False, server_default=sa.text('true')),
-        sa.Column('created_at', sa.DateTime(timezone=True), nullable=False, server_default=sa.text('CURRENT_TIMESTAMP')),
-        sa.Column('updated_at', sa.DateTime(timezone=True), nullable=False, server_default=sa.text('CURRENT_TIMESTAMP')),
-        sa.Column('profile_picture_url', sa.String(length=500), nullable=True),
-        sa.Column('bio', sa.Text(), nullable=True),
-        sa.PrimaryKeyConstraint('id'),
-        sa.UniqueConstraint('email'),
-    )
-    op.create_index('ix_users_email', 'users', ['email'], unique=True)
+
+    # Create table only if it doesn't exist - use checkfirst via raw SQL for safety
+    conn = op.get_bind()
+    inspector = sa.inspect(conn)
+    if 'users' not in inspector.get_table_names():
+        op.create_table(
+            'users',
+            sa.Column('id', postgresql.UUID(as_uuid=True), nullable=False),
+            sa.Column('email', sa.String(length=255), nullable=False),
+            sa.Column('hashed_password', sa.String(length=255), nullable=False),
+            sa.Column('full_name', sa.String(length=255), nullable=False),
+            sa.Column('role', postgresql.ENUM('student', 'instructor', 'admin', name='user_role', create_type=False), nullable=False, server_default=sa.text("'student'::user_role")),
+            sa.Column('is_active', sa.Boolean(), nullable=False, server_default=sa.text('true')),
+            sa.Column('created_at', sa.DateTime(timezone=True), nullable=False, server_default=sa.text('CURRENT_TIMESTAMP')),
+            sa.Column('updated_at', sa.DateTime(timezone=True), nullable=False, server_default=sa.text('CURRENT_TIMESTAMP')),
+            sa.Column('profile_picture_url', sa.String(length=500), nullable=True),
+            sa.Column('bio', sa.Text(), nullable=True),
+            sa.PrimaryKeyConstraint('id'),
+            sa.UniqueConstraint('email'),
+        )
+        op.create_index('ix_users_email', 'users', ['email'], unique=True)
 
 
 def downgrade() -> None:
     op.drop_index('ix_users_email', table_name='users')
     op.drop_table('users')
+    user_role = postgresql.ENUM('student', 'instructor', 'admin', name='user_role', create_type=False)
     user_role.drop(op.get_bind(), checkfirst=True)
