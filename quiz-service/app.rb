@@ -19,6 +19,7 @@ require_relative 'models/submission'
 
 module QuizService
   SERVICE_NAME = 'quiz-service'.freeze
+  OTEL_EXPORTER_ENDPOINT = ENV['OTEL_EXPORTER_OTLP_ENDPOINT']&.strip
 
   APP_LOGGER = Logger.new($stdout)
   APP_LOGGER.formatter = proc do |_severity, _datetime, _progname, msg|
@@ -41,13 +42,15 @@ module QuizService
 
   OpenTelemetry::SDK.configure do |config|
     config.service_name = SERVICE_NAME
-    config.add_span_processor(
-      OpenTelemetry::SDK::Trace::Export::BatchSpanProcessor.new(
-        OpenTelemetry::Exporter::OTLP::Exporter.new(
-          endpoint: ENV.fetch('OTEL_EXPORTER_OTLP_ENDPOINT', 'http://otel-collector:4317')
+    if OTEL_EXPORTER_ENDPOINT && !OTEL_EXPORTER_ENDPOINT.empty?
+      config.add_span_processor(
+        OpenTelemetry::SDK::Trace::Export::BatchSpanProcessor.new(
+          OpenTelemetry::Exporter::OTLP::Exporter.new(
+            endpoint: OTEL_EXPORTER_ENDPOINT
+          )
         )
       )
-    )
+    end
     config.use 'OpenTelemetry::Instrumentation::Sinatra'
     config.use 'OpenTelemetry::Instrumentation::ActiveRecord'
   end

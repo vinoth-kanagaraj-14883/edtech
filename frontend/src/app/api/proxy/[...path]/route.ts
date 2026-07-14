@@ -3,8 +3,22 @@ import { NextRequest, NextResponse } from 'next/server';
 import { AUTH_COOKIE_NAME } from '@/lib/auth';
 
 const API_URL = (process.env.API_URL || 'http://api-gateway:8080').replace(/\/$/, '');
+const OTEL_TRACES_ENDPOINT = process.env.OTEL_EXPORTER_OTLP_TRACES_ENDPOINT?.trim();
 
 const buildTargetUrl = (request: NextRequest, path: string[]) => {
+  if (path[0] === 'otel') {
+    if (!OTEL_TRACES_ENDPOINT) {
+      return null;
+    }
+
+    const otelTarget = new URL(OTEL_TRACES_ENDPOINT);
+    request.nextUrl.searchParams.forEach((value, key) => {
+      otelTarget.searchParams.append(key, value);
+    });
+
+    return otelTarget;
+  }
+
   const pathname = path.join('/');
   const target = new URL(`${API_URL}/${pathname}`);
 
@@ -17,6 +31,10 @@ const buildTargetUrl = (request: NextRequest, path: string[]) => {
 
 const proxy = async (request: NextRequest, { params }: { params: { path: string[] } }) => {
   const target = buildTargetUrl(request, params.path);
+  if (!target) {
+    return new NextResponse(null, { status: 204 });
+  }
+
   const headers = new Headers(request.headers);
   const token = request.cookies.get(AUTH_COOKIE_NAME)?.value;
 
