@@ -33,8 +33,17 @@ export const initTelemetry = () => {
     return;
   }
 
+  // The OTLP exporter requires an absolute URL. When the configured endpoint
+  // is a relative path (e.g. the Next.js proxy route "/api/proxy/otel/v1/traces"),
+  // resolve it against the current origin so `new URL(...)` inside the exporter
+  // does not throw "Could not parse user-provided export URL".
+  const configuredEndpoint = telemetryConfig.tracesEndpoint;
+  const tracesEndpoint = /^https?:\/\//i.test(configuredEndpoint)
+    ? configuredEndpoint
+    : new URL(configuredEndpoint, window.location.origin).toString();
+
   const exporter = new OTLPTraceExporter({
-    url: telemetryConfig.tracesEndpoint,
+    url: tracesEndpoint,
     headers: telemetryConfig.headers
   });
 

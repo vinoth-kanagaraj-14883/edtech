@@ -2,7 +2,7 @@ SHELL := /bin/bash
 COMPOSE := docker compose -f docker-compose.yml
 COMPOSE_OBS := docker compose -f docker-compose.yml -f docker-compose.observability.yml
 
-.PHONY: up down up-obs build test health k8s-deploy k8s-delete load-test setup-db logs status
+.PHONY: up down up-obs build rebuild rebuild-one smoke test health k8s-deploy k8s-delete load-test setup-db logs status
 
 # Docker Compose
 up:
@@ -16,6 +16,20 @@ up-obs:
 
 build:
 	$(COMPOSE) build
+
+# Rebuild all images and recreate containers (use after code changes)
+rebuild:
+	$(COMPOSE_OBS) build
+	$(COMPOSE_OBS) up -d --force-recreate
+
+# Rebuild a single service: make rebuild-one SVC=api-gateway
+rebuild-one:
+	$(COMPOSE) build $(SVC)
+	$(COMPOSE_OBS) up -d --force-recreate $(SVC)
+
+# Run end-to-end smoke test across all flows
+smoke:
+	./scripts/smoke-test.sh
 
 # Testing
 test:

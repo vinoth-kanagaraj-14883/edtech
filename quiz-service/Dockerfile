@@ -18,6 +18,9 @@ WORKDIR /app
 COPY --from=builder /usr/local/bundle /usr/local/bundle
 COPY --from=builder /app /app
 
+COPY entrypoint.sh /entrypoint.sh
+RUN sed -i 's/\r$//' /entrypoint.sh && chmod +x /entrypoint.sh
+
 RUN chown -R app:app /app
 
 ENV APP_ENV=production     RACK_ENV=production     PORT=8004
@@ -26,4 +29,4 @@ EXPOSE 8004
 
 USER app
 
-CMD ["bundle", "exec", "rackup", "config.ru", "-s", "puma", "-o", "0.0.0.0", "-p", "8004"]
+ENTRYPOINT ["/entrypoint.sh"]

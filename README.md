@@ -1,6 +1,6 @@
-# EdTech Platform
+# EduForge Platform
 
-A polyglot, microservices-based EdTech platform combining Python, Java, TypeScript, Go-ready, and Ruby-ready service boundaries with Docker, Kubernetes, Helm, and an observability stack.
+EduForge is a polyglot, microservices-based EdTech platform combining Python, Java, TypeScript, Go-ready, and Ruby-ready service boundaries with Docker, Kubernetes, Helm, and an observability stack.
 
 ## 1. Architecture diagram
 

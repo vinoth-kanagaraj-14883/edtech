@@ -9,15 +9,21 @@ services:
 
   course-service:
     environment:
-      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+      # Java OTLP HTTP exporter -> collector HTTP port 4318
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+      OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
 
   content-service:
     environment:
-      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+      # Node OTLP HTTP exporter -> collector HTTP port 4318
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+      OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
 
   quiz-service:
     environment:
-      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+      # Ruby OTLP HTTP exporter -> collector HTTP port 4318
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+      OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
 
   notification-service:
     environment:
@@ -25,7 +31,9 @@ services:
 
   frontend:
     environment:
-      OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: http://otel-collector:4318/v1/traces
+      # Browser-side spans can't resolve Docker-internal service names, so
+      # point at the host-published collector port instead.
+      OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: http://localhost:4318/v1/traces
 
   otel-collector:
     image: otel/opentelemetry-collector-contrib:0.103.1
@@ -68,6 +76,21 @@ services:
     container_name: edtech-jaeger
     environment:
       COLLECTOR_OTLP_ENABLED: "true"
+      # Jaeger's OTLP receiver binds to `localhost` by default, which only
+      # accepts connections from inside its own container. Bind to all
+      # interfaces so otel-collector (a separate container) can reach it.
+      COLLECTOR_OTLP_GRPC_HOST_PORT: "0.0.0.0:4317"
+      COLLECTOR_OTLP_HTTP_HOST_PORT: "0.0.0.0:4318"
+      # Service Performance Monitoring (Monitor tab): read RED metrics
+      # (derived from spans by the otel-collector's spanmetrics connector)
+      # from Prometheus.
+      METRICS_STORAGE_TYPE: prometheus
+      PROMETHEUS_SERVER_URL: http://prometheus:9090
+      # The collector's prometheus exporter appends `_total`/duration-unit
+      # suffixes to metric names; tell Jaeger to look for those instead of
+      # the bare `calls`/`duration_bucket` names.
+      PROMETHEUS_QUERY_NORMALIZE_CALLS: "true"
+      PROMETHEUS_QUERY_NORMALIZE_DURATION: "true"
     ports:
       - "${JAEGER_PORT:-16686}:16686"
       - "14250:14250"

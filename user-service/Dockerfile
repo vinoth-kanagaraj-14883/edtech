@@ -9,7 +9,7 @@ ENV PATH="${VENV_PATH}/bin:${PATH}"
 
 WORKDIR /app
 COPY requirements.txt ./
-RUN pip install --upgrade pip setuptools wheel     && pip install -r requirements.txt     && pip install asyncpg==0.29.0
+RUN pip install --upgrade pip wheel     && pip install "setuptools<81"     && pip install -r requirements.txt     && pip install asyncpg==0.29.0
 
 FROM python:3.11-slim AS runtime
 
@@ -23,7 +23,7 @@ COPY . .
 RUN chown -R app:app /app /home/app
 
 COPY entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh && chown app:app /entrypoint.sh
+RUN sed -i 's/\r$//' /entrypoint.sh && chmod +x /entrypoint.sh && chown app:app /entrypoint.sh
 
 USER app
 EXPOSE 8001

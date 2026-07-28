@@ -54,7 +54,7 @@ export const getUserFromToken = (token?: string | null): User | null => {
 
     return {
       id: decoded.id ?? decoded.sub ?? decoded.email ?? 'current-user',
-      name: decoded.name ?? 'EdTech Learner',
+      name: decoded.name ?? 'EduForge Learner',
       email: decoded.email ?? '',
       role: decoded.role ?? 'student',
       avatarUrl: decoded.avatarUrl ?? null,

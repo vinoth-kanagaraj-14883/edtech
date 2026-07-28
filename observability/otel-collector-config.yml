@@ -6,6 +6,19 @@ receivers:
       http:
         endpoint: 0.0.0.0:4318
 
+connectors:
+  # Derives Jaeger's Service Performance Monitoring (RED) metrics from
+  # incoming trace spans. Exposed via the `prometheus` exporter below so
+  # Jaeger can query them through Prometheus.
+  spanmetrics:
+    histogram:
+      explicit:
+        buckets: [2ms, 8ms, 20ms, 50ms, 100ms, 200ms, 500ms, 1s, 2s, 5s, 10s]
+    dimensions:
+      - name: http.method
+      - name: http.status_code
+    metrics_flush_interval: 15s
+
 processors:
   batch:
 
@@ -23,8 +36,12 @@ service:
     traces:
       receivers: [otlp]
       processors: [batch]
-      exporters: [otlp/jaeger, debug]
+      exporters: [otlp/jaeger, debug, spanmetrics]
     metrics:
-      receivers: [otlp]
+      receivers: [otlp, spanmetrics]
       processors: [batch]
       exporters: [prometheus]
+    logs:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [debug]

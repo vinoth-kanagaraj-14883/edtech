@@ -341,6 +341,15 @@ func initMetrics() {
 	})
 }
 
+// routePrefix maps an inbound gateway path prefix to the base path expected by
+// the upstream service. For example an inbound request to "/api/users/me" with
+// gatewayPrefix "/api/users" and upstreamBase "/users" is forwarded upstream as
+// "/users/me".
+type routePrefix struct {
+	gatewayPrefix string
+	upstreamBase  string
+}
+
 func registerServiceRoutes(router *gin.Engine, serviceName, rawURL string, config Config, logger *zap.Logger) error {
 	target, err := url.Parse(rawURL)
 	if err != nil {
@@ -350,45 +359,88 @@ func registerServiceRoutes(router *gin.Engine, serviceName, rawURL string, confi
 	breaker := NewCircuitBreaker(config.CircuitFailureThreshold, config.CircuitHalfOpenSuccess, config.CircuitOpenTimeout)
 	proxy := newReverseProxy(serviceName, target, breaker, logger, config)
 
-	handler := func(c *gin.Context) {
-		proxyPath := c.Param("proxyPath")
-		if proxyPath == "" {
-			proxyPath = "/"
+	makeHandler := func(upstreamBase string) gin.HandlerFunc {
+		return func(c *gin.Context) {
+			proxyPath := c.Param("proxyPath")
+			outPath := upstreamBase + proxyPath
+			if outPath == "" {
+				outPath = "/"
+			}
+			c.Request.URL.Path = outPath
+			c.Request.URL.RawPath = outPath
+			proxy.ServeHTTP(c.Writer, c.Request)
 		}
-		c.Request.URL.Path = proxyPath
-		c.Request.URL.RawPath = proxyPath
-		proxy.ServeHTTP(c.Writer, c.Request)
 	}
 
-	prefixes := servicePrefixes(serviceName)
-	for _, prefix := range prefixes {
-		router.Any(prefix, handler)
-		router.Any(prefix+"/*proxyPath", handler)
+	for _, prefix := range servicePrefixes(serviceName) {
+		handler := makeHandler(prefix.upstreamBase)
+		// Exact-prefix match (e.g. "/api/courses") maps to the upstream base.
+		router.Any(prefix.gatewayPrefix, makeHandler(prefix.upstreamBase))
+		// Wildcard match (e.g. "/api/courses/123") appends the remainder.
+		router.Any(prefix.gatewayPrefix+"/*proxyPath", handler)
 	}
 	return nil
 }
 
-func servicePrefixes(service string) []string {
+func servicePrefixes(service string) []routePrefix {
 	switch service {
 	case "users":
-		return []string{"/users", "/api/v1/users"}
+		return []routePrefix{
+			{gatewayPrefix: "/users", upstreamBase: "/users"},
+			{gatewayPrefix: "/api/users", upstreamBase: "/users"},
+			{gatewayPrefix: "/api/v1/users", upstreamBase: "/users"},
+			// Authentication endpoints live under /auth on the user-service.
+			{gatewayPrefix: "/auth", upstreamBase: "/auth"},
+			{gatewayPrefix: "/api/auth", upstreamBase: "/auth"},
+			{gatewayPrefix: "/api/v1/auth", upstreamBase: "/auth"},
+		}
 	case "courses":
-		return []string{"/courses", "/api/v1/courses"}
+		return []routePrefix{
+			{gatewayPrefix: "/courses", upstreamBase: "/courses"},
+			{gatewayPrefix: "/api/courses", upstreamBase: "/courses"},
+			{gatewayPrefix: "/api/v1/courses", upstreamBase: "/courses"},
+		}
 	case "content":
-		return []string{"/content", "/api/v1/content"}
+		return []routePrefix{
+			{gatewayPrefix: "/content", upstreamBase: "/content"},
+			{gatewayPrefix: "/api/content", upstreamBase: "/content"},
+			{gatewayPrefix: "/api/v1/content", upstreamBase: "/content"},
+			// Lessons live in the content-service under /lessons. Expose them
+			// via /api/lessons so the frontend can reach them through the gateway.
+			{gatewayPrefix: "/lessons", upstreamBase: "/lessons"},
+			{gatewayPrefix: "/api/lessons", upstreamBase: "/lessons"},
+			{gatewayPrefix: "/api/v1/lessons", upstreamBase: "/lessons"},
+		}
 	case "quizzes":
-		return []string{"/quizzes", "/quiz", "/api/v1/quizzes"}
+		return []routePrefix{
+			{gatewayPrefix: "/quizzes", upstreamBase: "/quizzes"},
+			{gatewayPrefix: "/quiz", upstreamBase: "/quizzes"},
+			{gatewayPrefix: "/api/quizzes", upstreamBase: "/quizzes"},
+			{gatewayPrefix: "/api/v1/quizzes", upstreamBase: "/quizzes"},
+		}
 	case "notifications":
-		return []string{"/notifications", "/api/v1/notifications"}
+		return []routePrefix{
+			{gatewayPrefix: "/notifications", upstreamBase: "/notifications"},
+			{gatewayPrefix: "/api/notifications", upstreamBase: "/notifications"},
+			{gatewayPrefix: "/api/v1/notifications", upstreamBase: "/notifications"},
+		}
 	default:
-		return []string{"/" + service, "/api/v1/" + service}
+		return []routePrefix{
+			{gatewayPrefix: "/" + service, upstreamBase: "/" + service},
+			{gatewayPrefix: "/api/" + service, upstreamBase: "/" + service},
+			{gatewayPrefix: "/api/v1/" + service, upstreamBase: "/" + service},
+		}
 	}
 }
 
 func newReverseProxy(service string, target *url.URL, breaker *CircuitBreaker, logger *zap.Logger, config Config) *httputil.ReverseProxy {
 	transport := &ResilientTransport{
 		base: &http.Transport{
-			Proxy:                 http.ProxyFromEnvironment,
+			// Do NOT use HTTP_PROXY/HTTPS_PROXY for internal service-to-service
+			// calls. Upstreams are reached via internal Docker/K8s hostnames
+			// (e.g. http://user-service:8001) which a corporate/egress proxy
+			// cannot resolve, producing spurious 502s. Force a direct dial.
+			Proxy:                 nil,
 			MaxIdleConns:          100,
 			MaxIdleConnsPerHost:   20,
 			IdleConnTimeout:       90 * time.Second,
@@ -482,9 +534,18 @@ func parseRSAPublicKey(raw string) (*rsa.PublicKey, error) {
 	return rsaKey, nil
 }
 
-func (v *JWTValidator) Validate(tokenString string) (*jwt.RegisteredClaims, error) {
+// GatewayClaims extends the standard registered claims with the identity
+// fields the user-service embeds in its tokens (email, role), so the gateway
+// can forward a trusted identity to upstream services.
+type GatewayClaims struct {
+	jwt.RegisteredClaims
+	Email string `json:"email,omitempty"`
+	Role  string `json:"role,omitempty"`
+}
+
+func (v *JWTValidator) Validate(tokenString string) (*GatewayClaims, error) {
 	parser := jwt.NewParser(jwt.WithValidMethods([]string{jwt.SigningMethodHS256.Alg(), jwt.SigningMethodRS256.Alg()}))
-	claims := &jwt.RegisteredClaims{}
+	claims := &GatewayClaims{}
 
 	token, err := parser.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
 		switch token.Method.Alg() {
@@ -827,6 +888,12 @@ func proxyLogFields(ctx context.Context, _ *zap.Logger, fields ...zap.Field) []z
 
 func authMiddleware(validator *JWTValidator) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		// Strip any client-supplied identity headers so they cannot be spoofed;
+		// only the gateway is trusted to set these after validating the JWT.
+		c.Request.Header.Del("X-User-Id")
+		c.Request.Header.Del("X-User-Role")
+		c.Request.Header.Del("X-User-Email")
+
 		if shouldSkipSecurity(c.Request.URL.Path) {
 			c.Next()
 			return
@@ -842,6 +909,15 @@ func authMiddleware(validator *JWTValidator) gin.HandlerFunc {
 		if err != nil {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "invalid token"})
 			return
+		}
+
+		// Forward the validated identity to upstream services as trusted headers.
+		c.Request.Header.Set("X-User-Id", claims.Subject)
+		if claims.Role != "" {
+			c.Request.Header.Set("X-User-Role", claims.Role)
+		}
+		if claims.Email != "" {
+			c.Request.Header.Set("X-User-Email", claims.Email)
 		}
 
 		c.Set("user_id", claims.Subject)
@@ -942,7 +1018,25 @@ func corsMiddleware(allowedOrigins []string) gin.HandlerFunc {
 }
 
 func shouldSkipSecurity(path string) bool {
-	return path == "/health" || path == "/ready" || path == "/metrics"
+	if path == "/health" || path == "/ready" || path == "/metrics" {
+		return true
+	}
+	return isPublicAuthPath(path)
+}
+
+// isPublicAuthPath reports whether the request targets an authentication
+// endpoint that must be reachable without an existing bearer token (i.e. the
+// endpoints a client uses to obtain a token in the first place).
+func isPublicAuthPath(path string) bool {
+	trimmed := strings.TrimRight(path, "/")
+	switch trimmed {
+	case "/auth/register", "/auth/login", "/auth/refresh",
+		"/api/auth/register", "/api/auth/login", "/api/auth/refresh",
+		"/api/v1/auth/register", "/api/v1/auth/login", "/api/v1/auth/refresh":
+		return true
+	default:
+		return false
+	}
 }
 
 func getEnv(key, fallback string) string {

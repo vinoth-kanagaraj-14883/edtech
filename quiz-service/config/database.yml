@@ -2,7 +2,12 @@ default: &default
   adapter: mysql2
   encoding: utf8mb4
   pool: <%= ENV.fetch('DB_POOL', 5) %>
-  url: "<%= ENV.fetch('DATABASE_URL') %>"
+  host: <%= ENV.fetch('DB_HOST', 'mysql') %>
+  port: <%= ENV.fetch('DB_PORT', 3306) %>
+  username: <%= ENV.fetch('DB_USER', 'edtech') %>
+  password: "<%= ENV.fetch('DB_PASSWORD', 'edtech_password') %>"
+  database: <%= ENV.fetch('DB_NAME', 'quizdb') %>
+  ssl_mode: disabled
 
 development:
   <<: *default

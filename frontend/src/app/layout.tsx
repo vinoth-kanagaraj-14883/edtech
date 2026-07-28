@@ -8,8 +8,8 @@ import './globals.css';
 
 export const metadata: Metadata = {
   title: {
-    default: 'Polyglot EdTech',
-    template: '%s | Polyglot EdTech'
+    default: 'EduForge',
+    template: '%s | EduForge'
   },
   description: 'A modern learning platform for courses, lessons, quizzes, and personalized progress tracking.'
 };

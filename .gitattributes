@@ -1,0 +1,8 @@
+# Normalize line endings. Shell scripts MUST use LF so containers can exec them.
+*.sh text eol=lf
+entrypoint.sh text eol=lf
+Dockerfile text eol=lf
+Makefile text eol=lf
+
+# Default: let Git handle text normalization automatically.
+* text=auto

@@ -106,6 +106,16 @@ public class CourseService {
         return enrollmentRepository.findByUserId(userId);
     }
 
+    public List<Course> getUserEnrolledCourses(UUID userId) {
+        return enrollmentRepository.findByUserId(userId).stream()
+                .map(Enrollment::getCourseId)
+                .distinct()
+                .map(courseRepository::findById)
+                .filter(java.util.Optional::isPresent)
+                .map(java.util.Optional::get)
+                .toList();
+    }
+
     @Transactional
     public Enrollment updateEnrollmentProgress(UUID enrollmentId, Integer progress, UUID lessonId, Long watchedSeconds) {
         if (progress == null || progress < 0 || progress > 100) {

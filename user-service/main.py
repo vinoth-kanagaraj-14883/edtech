@@ -137,17 +137,29 @@ def decode_access_token(token: str) -> dict[str, Any]:
 
 
 async def get_current_user(
+    request: Request,
     credentials: HTTPAuthorizationCredentials | None = Depends(auth_scheme),
     session: AsyncSession = Depends(get_session),
 ) -> User:
-    if credentials is None:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='Authentication required')
+    # Prefer the trusted identity injected by the API gateway after it validated
+    # the JWT. Fall back to decoding the bearer token directly (e.g. when the
+    # service is called without the gateway in local/dev scenarios).
+    user_id: uuid.UUID | None = None
+    header_user_id = request.headers.get('X-User-Id')
+    if header_user_id:
+        try:
+            user_id = uuid.UUID(header_user_id)
+        except ValueError:
+            user_id = None
 
-    payload = decode_access_token(credentials.credentials)
-    try:
-        user_id = uuid.UUID(payload['sub'])
-    except (KeyError, ValueError) as exc:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='Invalid token subject') from exc
+    if user_id is None:
+        if credentials is None:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='Authentication required')
+        payload = decode_access_token(credentials.credentials)
+        try:
+            user_id = uuid.UUID(payload['sub'])
+        except (KeyError, ValueError) as exc:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='Invalid token subject') from exc
 
     user = await session.get(User, user_id)
     if user is None or not user.is_active:
@@ -175,14 +187,13 @@ def configure_telemetry(app: FastAPI) -> TracerProvider:
 
     fastapi_instrumentor.instrument_app(app, tracer_provider=tracer_provider, excluded_urls='/health,/ready,/metrics')
     sqlalchemy_instrumentor.instrument(engine=get_engine().sync_engine, tracer_provider=tracer_provider)
+    app.state.tracer_provider = tracer_provider
     return tracer_provider
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info('service_starting')
-    tracer_provider = configure_telemetry(app)
-    app.state.tracer_provider = tracer_provider
     logger.info('service_started')
     try:
         yield
@@ -191,7 +202,9 @@ async def lifespan(app: FastAPI):
         fastapi_instrumentor.uninstrument_app(app)
         sqlalchemy_instrumentor.uninstrument()
         await dispose_engine()
-        tracer_provider.shutdown()
+        tracer_provider = getattr(app.state, 'tracer_provider', None)
+        if tracer_provider is not None:
+            tracer_provider.shutdown()
         logger.info('service_stopped')
 
 
@@ -236,6 +249,12 @@ async def http_exception_handler(request: Request, exc: HTTPException) -> JSONRe
     return JSONResponse(status_code=exc.status_code, content={'detail': exc.detail})
 
 
+# Configure telemetry at import time (before the app starts serving). FastAPI /
+# Starlette forbid adding middleware after startup, so instrumentation must run
+# here rather than inside the lifespan handler.
+configure_telemetry(app)
+
+
 @app.post('/auth/register', response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 async def register_user(payload: UserCreate, session: AsyncSession = Depends(get_session)) -> UserResponse:
     existing_user = await session.scalar(select(User).where(User.email == payload.email))
@@ -276,6 +295,20 @@ async def login(payload: LoginRequest, session: AsyncSession = Depends(get_sessi
     return create_access_token(user)
 
 
+@app.get('/users/me', response_model=UserResponse)
+async def get_me(current_user: User = Depends(get_current_user)) -> UserResponse:
+    return UserResponse.model_validate(current_user)
+
+
+@app.put('/users/me', response_model=UserResponse)
+async def update_me(
+    payload: UserUpdate,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+) -> UserResponse:
+    return await _apply_user_update(current_user.id, payload, session, current_user)
+
+
 @app.get('/users/{id}', response_model=UserResponse)
 async def get_user(
     id: uuid.UUID,
@@ -289,12 +322,11 @@ async def get_user(
     return UserResponse.model_validate(user)
 
 
-@app.put('/users/{id}', response_model=UserResponse)
-async def update_user(
+async def _apply_user_update(
     id: uuid.UUID,
     payload: UserUpdate,
-    session: AsyncSession = Depends(get_session),
-    current_user: User = Depends(get_current_user),
+    session: AsyncSession,
+    current_user: User,
 ) -> UserResponse:
     ensure_user_access(id, current_user)
     user = await session.get(User, id)
@@ -324,6 +356,16 @@ async def update_user(
     await session.refresh(user)
     logger.info('user_updated', user_id=str(user.id), updated_fields=sorted(updates.keys()))
     return UserResponse.model_validate(user)
+
+
+@app.put('/users/{id}', response_model=UserResponse)
+async def update_user(
+    id: uuid.UUID,
+    payload: UserUpdate,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+) -> UserResponse:
+    return await _apply_user_update(id, payload, session, current_user)
 
 
 @app.get('/health')

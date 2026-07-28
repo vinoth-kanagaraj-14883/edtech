@@ -32,7 +32,7 @@ services:
       - mysql-data:/var/lib/mysql
       - ./mysql-init:/docker-entrypoint-initdb.d:ro
     healthcheck:
-      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -proot_password"]
+      test: ["CMD-SHELL", "mysqladmin ping -uroot -proot_password"]
       interval: 10s
       timeout: 5s
       retries: 20
@@ -136,7 +136,12 @@ services:
     container_name: edtech-quiz-service
     environment:
       PORT: 8004
-      DATABASE_URL: mysql2://edtech:${MYSQL_PASSWORD:-edtech_password}@mysql:3306/quizdb
+      DATABASE_URL: mysql2://edtech:${MYSQL_PASSWORD:-edtech_password}@mysql:3306/quizdb?ssl_mode=disabled
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_USER: ${MYSQL_USER:-edtech}
+      DB_PASSWORD: ${MYSQL_PASSWORD:-edtech_password}
+      DB_NAME: quizdb
       OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
     ports:
       - "8004:8004"

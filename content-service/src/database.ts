@@ -15,10 +15,17 @@ export const AppDataSource = new DataSource({
   password: process.env.DB_PASSWORD ?? 'password',
   database: process.env.DB_NAME ?? 'content_service',
   entities: [path.join(__dirname, 'models', '*.{js,ts}')],
-  synchronize: false,
+  // Auto-create tables from entities for local/dev. The MySQL init only creates
+  // the empty database; there are no migrations, so synchronize builds the schema.
+  synchronize: process.env.DB_SYNCHRONIZE !== 'false',
   logging: false,
   charset: 'utf8mb4_unicode_ci',
+  // Disable TLS for the internal MySQL connection. MySQL 8.4 presents a
+  // self-signed cert that the mysql2 driver rejects by default, causing
+  // "self-signed certificate in certificate chain" connection failures.
+  ssl: false,
   extra: {
+    ssl: false,
     waitForConnections: true,
     connectionLimit: Number(process.env.DB_POOL_MAX ?? 10),
     maxIdle: Number(process.env.DB_POOL_IDLE ?? 10),

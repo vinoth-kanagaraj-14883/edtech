@@ -199,4 +199,35 @@ router.delete('/:id', async (request, response, next) => {
   }
 });
 
+router.post('/:id/complete', async (request, response, next) => {
+  try {
+    const { id } = request.params;
+
+    if (!isUuid(id)) {
+      return response.status(400).json({ error: 'id must be a valid UUID' });
+    }
+
+    const lesson = await AppDataSource.getRepository(Lesson).findOneBy({ id });
+
+    if (!lesson) {
+      return response.status(404).json({ error: 'Lesson not found' });
+    }
+
+    // The authenticated user is provided by the API gateway. Content-service
+    // does not own per-user progress (that lives in course-service enrollments),
+    // so this acknowledges the completion for the given lesson/user.
+    const userId = request.header('X-User-Id') ?? null;
+
+    return response.json({
+      lessonId: lesson.id,
+      courseId: lesson.courseId,
+      userId,
+      completed: true,
+      completedAt: new Date().toISOString()
+    });
+  } catch (error) {
+    return next(error);
+  }
+});
+
 export default router;

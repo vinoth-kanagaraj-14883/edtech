@@ -70,6 +70,23 @@ const extractMessage = (payload: unknown, fallback: string) => {
     return fallback;
   }
 
+  // FastAPI (user-service) returns errors as { detail: "..." } for
+  // HTTPException, or { detail: [{ loc, msg, type }, ...] } for Pydantic
+  // validation errors (422). Handle both shapes before falling back to
+  // other common error field names.
+  const detail = (payload as { detail?: unknown }).detail;
+  if (typeof detail === 'string' && detail.trim().length > 0) {
+    return detail;
+  }
+  if (Array.isArray(detail) && detail.length > 0) {
+    const messages = detail
+      .map((item) => (item && typeof item === 'object' ? (item as { msg?: string }).msg : undefined))
+      .filter((msg): msg is string => Boolean(msg));
+    if (messages.length > 0) {
+      return messages.join(', ');
+    }
+  }
+
   return (
     (payload as { message?: string }).message ||
     (payload as { error?: string }).error ||
@@ -222,7 +239,7 @@ const normalizeQuiz = (raw: Record<string, unknown>): Quiz => {
 
 const normalizeUser = (raw: Record<string, unknown>): User => ({
   id: String(raw.id ?? raw.userId ?? raw.sub ?? 'current-user'),
-  name: String(raw.name ?? raw.fullName ?? 'EdTech User'),
+  name: String(raw.name ?? raw.fullName ?? 'EduForge User'),
   email: String(raw.email ?? ''),
   role: (raw.role as User['role']) ?? 'student',
   avatarUrl: raw.avatarUrl ? String(raw.avatarUrl) : null,
@@ -322,7 +339,13 @@ export const registerUser = async (payload: RegisterPayload, context: ApiContext
     }),
     {
       method: 'POST',
-      body: JSON.stringify(payload),
+      // The user-service expects `full_name`; the form collects `name`.
+      body: JSON.stringify({
+        email: payload.email,
+        password: payload.password,
+        full_name: payload.name,
+        role: payload.role
+      }),
       token: context.token
     }
   );
@@ -340,7 +363,11 @@ export const updateProfile = async (payload: ProfilePayload, context: ApiContext
     (response) => normalizeUser(response as Record<string, unknown>),
     {
       method: 'PUT',
-      body: JSON.stringify(payload),
+      // Backend UserUpdate expects `full_name`/`bio`; the form uses `name`.
+      body: JSON.stringify({
+        full_name: payload.name,
+        ...(payload.bio !== undefined ? { bio: payload.bio } : {})
+      }),
       token: context.token
     }
   );

@@ -50,6 +50,30 @@ type notification struct {
 	ReadAt    *time.Time             `json:"read_at,omitempty"`
 }
 
+// MarshalJSON emits both snake_case and camelCase keys so that clients
+// expecting either convention (e.g. the frontend normalizers) read real values.
+func (n notification) MarshalJSON() ([]byte, error) {
+	out := map[string]interface{}{
+		"id":         n.ID,
+		"user_id":    n.UserID,
+		"userId":     n.UserID,
+		"type":       n.Type,
+		"title":      n.Title,
+		"message":    n.Message,
+		"read":       n.Read,
+		"created_at": n.CreatedAt,
+		"createdAt":  n.CreatedAt,
+	}
+	if n.Metadata != nil {
+		out["metadata"] = n.Metadata
+	}
+	if n.ReadAt != nil {
+		out["read_at"] = n.ReadAt
+		out["readAt"] = n.ReadAt
+	}
+	return json.Marshal(out)
+}
+
 type appMetrics struct {
 	requestCounter    *prometheus.CounterVec
 	requestDuration   *prometheus.HistogramVec
@@ -264,6 +288,7 @@ func (s *service) registerRoutes() {
 		return nil
 	})
 
+	s.app.Get("/notifications", s.getNotifications)
 	s.app.Get("/notifications/:userId", s.getNotifications)
 	s.app.Put("/notifications/:id/read", s.markNotificationRead)
 	s.app.Put("/notifications/:userId/read-all", s.markAllRead)
@@ -490,6 +515,14 @@ func (s *service) getNotifications(c *fiber.Ctx) error {
 	}
 
 	userID := c.Params("userId")
+	if userID == "" {
+		// Collection route (/notifications): resolve the user from the trusted
+		// identity header injected by the API gateway.
+		userID = c.Get("X-User-Id")
+	}
+	if userID == "" {
+		return fiber.NewError(fiber.StatusUnauthorized, "user id is required")
+	}
 	key := userNotificationsRedisKey(userID)
 	total, err := s.redis.ZCard(c.UserContext(), key).Result()
 	if err != nil {

@@ -43,10 +43,14 @@ module QuizService
   OpenTelemetry::SDK.configure do |config|
     config.service_name = SERVICE_NAME
     if OTEL_EXPORTER_ENDPOINT && !OTEL_EXPORTER_ENDPOINT.empty?
+      # The Ruby OTLP exporter expects the full signal path; append /v1/traces
+      # if only the collector base URL was provided.
+      traces_endpoint = OTEL_EXPORTER_ENDPOINT
+      traces_endpoint = "#{OTEL_EXPORTER_ENDPOINT.chomp('/')}/v1/traces" unless OTEL_EXPORTER_ENDPOINT.include?('/v1/traces')
       config.add_span_processor(
         OpenTelemetry::SDK::Trace::Export::BatchSpanProcessor.new(
           OpenTelemetry::Exporter::OTLP::Exporter.new(
-            endpoint: OTEL_EXPORTER_ENDPOINT
+            endpoint: traces_endpoint
           )
         )
       )
@@ -58,6 +62,23 @@ module QuizService
   class App < Sinatra::Base
     register Sinatra::ActiveRecordExtension
     helpers Sinatra::JSON
+
+    # Ensure the schema exists and demo data is seeded before serving requests.
+    # This makes the service self-healing regardless of external migration steps.
+    configure do
+      begin
+        required_tables = %w[quizzes questions submissions]
+        existing = ActiveRecord::Base.connection.tables
+        if (required_tables - existing).any?
+          APP_LOGGER.info('{"message":"loading quiz schema"}')
+          load File.expand_path('db/schema.rb', __dir__)
+        end
+        seeds = File.expand_path('db/seeds.rb', __dir__)
+        load seeds if File.exist?(seeds)
+      rescue StandardError => e
+        APP_LOGGER.error("{\"message\":\"schema/seed setup failed\",\"error\":\"#{e.message}\"}")
+      end
+    end
 
     set :bind, '0.0.0.0'
     set :port, ENV.fetch('PORT', 8004)
@@ -161,7 +182,10 @@ module QuizService
 
     get '/quizzes/:id' do
       quiz = Quiz.includes(:questions).find(params[:id])
-      json quiz: serialize_quiz(quiz, include_questions: true)
+      # Return the quiz at the top level (frontend reads id/title/questions
+      # directly) while also nesting it under `quiz` for backward compatibility.
+      serialized = serialize_quiz(quiz, include_questions: true)
+      json serialized.merge(quiz: serialized)
     end
 
     put '/quizzes/:id' do
@@ -353,16 +377,25 @@ module QuizService
     end
 
     def serialize_quiz(quiz, include_questions: false)
+      question_count = include_questions ? quiz.questions.size : quiz.questions.count
       data = {
         id: quiz.id,
         course_id: quiz.course_id,
+        courseId: quiz.course_id,
         title: quiz.title,
         description: quiz.description,
         time_limit_minutes: quiz.time_limit_minutes,
+        timeLimitMinutes: quiz.time_limit_minutes,
         passing_score: quiz.passing_score,
+        passingScore: quiz.passing_score,
         is_published: quiz.is_published,
+        isPublished: quiz.is_published,
+        question_count: question_count,
+        questionCount: question_count,
         created_at: quiz.created_at&.utc&.iso8601,
-        updated_at: quiz.updated_at&.utc&.iso8601
+        createdAt: quiz.created_at&.utc&.iso8601,
+        updated_at: quiz.updated_at&.utc&.iso8601,
+        updatedAt: quiz.updated_at&.utc&.iso8601
       }
       data[:questions] = quiz.questions.order(:order_index, :id).map { |question| serialize_question(question) } if include_questions
       data
@@ -372,12 +405,17 @@ module QuizService
       {
         id: question.id,
         quiz_id: question.quiz_id,
+        quizId: question.quiz_id,
         text: question.text,
+        prompt: question.text,
         question_type: question.question_type,
+        type: question.question_type,
         options: question.options,
         correct_answer: question.correct_answer,
+        correctAnswer: question.correct_answer,
         points: question.points,
         order_index: question.order_index,
+        orderIndex: question.order_index,
         created_at: question.created_at&.utc&.iso8601,
         updated_at: question.updated_at&.utc&.iso8601
       }

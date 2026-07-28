@@ -65,16 +65,16 @@ class UserUpdate(BaseModel):
 
 
 class UserResponse(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
 
     id: UUID
     email: str
-    full_name: str
+    full_name: str = Field(serialization_alias='fullName')
     role: str
-    is_active: bool
-    created_at: datetime
-    updated_at: datetime
-    profile_picture_url: str | None = None
+    is_active: bool = Field(serialization_alias='isActive')
+    created_at: datetime = Field(serialization_alias='createdAt')
+    updated_at: datetime = Field(serialization_alias='updatedAt')
+    profile_picture_url: str | None = Field(default=None, serialization_alias='profilePictureUrl')
     bio: str | None = None
 
 

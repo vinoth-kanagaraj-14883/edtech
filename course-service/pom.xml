@@ -19,9 +19,23 @@
 
     <properties>
         <java.version>17</java.version>
-        <opentelemetry.instrumentation.version>1.32.0-alpha</opentelemetry.instrumentation.version>
+        <opentelemetry.instrumentation.version>2.10.0</opentelemetry.instrumentation.version>
         <logstash.logback.encoder.version>7.4</logstash.logback.encoder.version>
     </properties>
+
+    <dependencyManagement>
+        <dependencies>
+            <!-- Align all OpenTelemetry artifact versions to avoid NoSuchMethodError
+                 between the micrometer bridge and the otel API/incubator jars. -->
+            <dependency>
+                <groupId>io.opentelemetry.instrumentation</groupId>
+                <artifactId>opentelemetry-instrumentation-bom</artifactId>
+                <version>${opentelemetry.instrumentation.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
 
     <dependencies>
         <dependency>
@@ -56,7 +70,6 @@
         <dependency>
             <groupId>io.opentelemetry.instrumentation</groupId>
             <artifactId>opentelemetry-spring-boot-starter</artifactId>
-            <version>${opentelemetry.instrumentation.version}</version>
         </dependency>
         <dependency>
             <groupId>net.logstash.logback</groupId>

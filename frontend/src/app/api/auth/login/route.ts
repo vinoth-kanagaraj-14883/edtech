@@ -17,6 +17,22 @@ const getMessage = (payload: unknown, fallback: string) => {
     return fallback;
   }
 
+  // FastAPI (user-service, via api-gateway passthrough) returns errors as
+  // { detail: "..." } for HTTPException, or
+  // { detail: [{ loc, msg, type }, ...] } for Pydantic validation (422).
+  const detail = (payload as { detail?: unknown }).detail;
+  if (typeof detail === 'string' && detail.trim().length > 0) {
+    return detail;
+  }
+  if (Array.isArray(detail) && detail.length > 0) {
+    const messages = detail
+      .map((item) => (item && typeof item === 'object' ? (item as { msg?: string }).msg : undefined))
+      .filter((msg): msg is string => Boolean(msg));
+    if (messages.length > 0) {
+      return messages.join(', ');
+    }
+  }
+
   return (payload as { message?: string }).message || (payload as { error?: string }).error || fallback;
 };
 
@@ -46,12 +62,14 @@ export async function POST(request: NextRequest) {
     }
 
     const token =
-      (payload as { token?: string; accessToken?: string; jwt?: string } | null)?.token ||
-      (payload as { token?: string; accessToken?: string; jwt?: string } | null)?.accessToken ||
-      (payload as { token?: string; accessToken?: string; jwt?: string } | null)?.jwt ||
-      ((payload as { data?: { token?: string; accessToken?: string; jwt?: string } } | null)?.data?.token ??
-        (payload as { data?: { token?: string; accessToken?: string; jwt?: string } } | null)?.data?.accessToken ??
-        (payload as { data?: { token?: string; accessToken?: string; jwt?: string } } | null)?.data?.jwt);
+      (payload as { token?: string; accessToken?: string; access_token?: string; jwt?: string } | null)?.token ||
+      (payload as { token?: string; accessToken?: string; access_token?: string; jwt?: string } | null)?.accessToken ||
+      (payload as { token?: string; accessToken?: string; access_token?: string; jwt?: string } | null)?.access_token ||
+      (payload as { token?: string; accessToken?: string; access_token?: string; jwt?: string } | null)?.jwt ||
+      ((payload as { data?: { token?: string; accessToken?: string; access_token?: string; jwt?: string } } | null)?.data?.token ??
+        (payload as { data?: { token?: string; accessToken?: string; access_token?: string; jwt?: string } } | null)?.data?.accessToken ??
+        (payload as { data?: { token?: string; accessToken?: string; access_token?: string; jwt?: string } } | null)?.data?.access_token ??
+        (payload as { data?: { token?: string; accessToken?: string; access_token?: string; jwt?: string } } | null)?.data?.jwt);
 
     if (!token) {
       return NextResponse.json({ message: 'Authentication token missing from upstream response.' }, { status: 502 });
