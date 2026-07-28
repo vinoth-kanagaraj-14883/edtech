@@ -9,11 +9,11 @@ interface QuizPageProps {
 }
 
 export default async function QuizPage({ params }: QuizPageProps) {
-  const { token } = requireServerAuth();
+  const { token, user } = requireServerAuth();
 
   try {
     const quiz = await getQuiz(params.id, { token });
-    return <QuizRunner quiz={quiz} />;
+    return <QuizRunner quiz={quiz} userId={user.id} />;
   } catch (error) {
     return <div className="surface border border-rose-500/30 bg-rose-500/10 p-8 text-rose-100">{error instanceof Error ? error.message : 'Unable to load this quiz.'}</div>;
   }

@@ -19,28 +19,38 @@ export default function QuizQuestion({ question, selectedAnswer, index, onChange
         <h3 className="text-lg font-semibold text-white">{question.prompt}</h3>
       </div>
 
-      <div className="space-y-3">
-        {options.map((option) => {
-          const checked = selectedAnswer === option;
+      {options.length > 0 ? (
+        <div className="space-y-3">
+          {options.map((option) => {
+            const checked = selectedAnswer === option;
 
-          return (
-            <label
-              key={option}
-              className={`flex cursor-pointer items-center gap-3 rounded-xl border px-4 py-3 text-sm transition ${checked ? 'border-brand-500 bg-brand-500/10 text-white' : 'border-slate-800 bg-slate-950/70 text-slate-300 hover:border-slate-700'}`}
-            >
-              <input
-                type="radio"
-                name={question.id}
-                value={option}
-                checked={checked}
-                onChange={() => onChange(question.id, option)}
-                className="h-4 w-4 accent-cyan-400"
-              />
-              <span>{option}</span>
-            </label>
-          );
-        })}
-      </div>
+            return (
+              <label
+                key={option}
+                className={`flex cursor-pointer items-center gap-3 rounded-xl border px-4 py-3 text-sm transition ${checked ? 'border-brand-500 bg-brand-500/10 text-white' : 'border-slate-800 bg-slate-950/70 text-slate-300 hover:border-slate-700'}`}
+              >
+                <input
+                  type="radio"
+                  name={question.id}
+                  value={option}
+                  checked={checked}
+                  onChange={() => onChange(question.id, option)}
+                  className="h-4 w-4 accent-cyan-400"
+                />
+                <span>{option}</span>
+              </label>
+            );
+          })}
+        </div>
+      ) : (
+        <input
+          type="text"
+          value={selectedAnswer ?? ''}
+          onChange={(event) => onChange(question.id, event.target.value)}
+          placeholder="Type your answer…"
+          className="w-full rounded-xl border border-slate-800 bg-slate-950/70 px-4 py-3 text-sm text-white placeholder:text-slate-500"
+        />
+      )}
     </div>
   );
 }

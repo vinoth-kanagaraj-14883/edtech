@@ -173,6 +173,26 @@ module QuizService
       json quizzes: quizzes.map { |quiz| serialize_quiz(quiz) }
     end
 
+    # Public, unauthenticated preview for the marketing/landing page: a
+    # small, fixed number of published quizzes with their questions, but
+    # WITHOUT correct answers (so anonymous visitors can try a quiz without
+    # being able to see/derive the answer key). Submission and results
+    # still require an authenticated account (see /quizzes/:id/submit),
+    # which is what nudges visitors to sign up.
+    get '/quizzes/public' do
+      limit = [[(params[:limit] || 2).to_i, 1].max, 5].min
+      quizzes = Quiz.where(is_published: true).includes(:questions).order(created_at: :asc).limit(limit)
+
+      json quizzes: quizzes.map { |quiz| serialize_quiz(quiz, include_questions: true, redact_answers: true) }
+    end
+
+    before '/quizzes/?*' do
+      next if request.request_method == 'GET' || request.request_method == 'OPTIONS'
+      next if request.path_info.end_with?('/submit')
+
+      require_instructor!
+    end
+
     post '/quizzes' do
       payload = parsed_request_body
       quiz = Quiz.create!(quiz_attributes(payload))
@@ -251,6 +271,21 @@ module QuizService
     end
 
     private
+
+    # Only requests proxied through api-gateway after successful JWT
+    # validation carry this trusted header (the gateway strips any
+    # client-supplied copy before validating, so it cannot be spoofed).
+    # Quiz-service has no other auth mechanism of its own; this is
+    # sufficient because the gateway is the only network path to this
+    # service inside the cluster/compose network.
+    def current_user_role
+      request.env['HTTP_X_USER_ROLE']
+    end
+
+    def require_instructor!
+      role = current_user_role
+      halt_json 403, error: 'forbidden', message: 'Only instructors can manage quizzes and questions.' unless role == 'instructor'
+    end
 
     def parsed_request_body
       request.body.rewind
@@ -376,7 +411,7 @@ module QuizService
       halt code, JSON.generate(payload)
     end
 
-    def serialize_quiz(quiz, include_questions: false)
+    def serialize_quiz(quiz, include_questions: false, redact_answers: false)
       question_count = include_questions ? quiz.questions.size : quiz.questions.count
       data = {
         id: quiz.id,
@@ -397,11 +432,13 @@ module QuizService
         updated_at: quiz.updated_at&.utc&.iso8601,
         updatedAt: quiz.updated_at&.utc&.iso8601
       }
-      data[:questions] = quiz.questions.order(:order_index, :id).map { |question| serialize_question(question) } if include_questions
+      if include_questions
+        data[:questions] = quiz.questions.order(:order_index, :id).map { |question| serialize_question(question, redact_answer: redact_answers) }
+      end
       data
     end
 
-    def serialize_question(question)
+    def serialize_question(question, redact_answer: false)
       {
         id: question.id,
         quiz_id: question.quiz_id,
@@ -411,8 +448,8 @@ module QuizService
         question_type: question.question_type,
         type: question.question_type,
         options: question.options,
-        correct_answer: question.correct_answer,
-        correctAnswer: question.correct_answer,
+        correct_answer: redact_answer ? nil : question.correct_answer,
+        correctAnswer: redact_answer ? nil : question.correct_answer,
         points: question.points,
         order_index: question.order_index,
         orderIndex: question.order_index,

@@ -68,7 +68,10 @@ public class CourseController {
     }
 
     @PostMapping("/courses")
-    public ResponseEntity<Course> createCourse(@Valid @RequestBody CourseRequest request) {
+    public ResponseEntity<Course> createCourse(
+            @RequestHeader(value = "X-User-Role", required = false) String userRole,
+            @Valid @RequestBody CourseRequest request) {
+        requireInstructor(userRole);
         Course createdCourse = courseService.createCourse(toCourse(request));
         return ResponseEntity.created(URI.create("/courses/" + createdCourse.getId())).body(createdCourse);
     }
@@ -79,12 +82,19 @@ public class CourseController {
     }
 
     @PutMapping("/courses/{id}")
-    public Course updateCourse(@PathVariable UUID id, @Valid @RequestBody CourseRequest request) {
+    public Course updateCourse(
+            @PathVariable UUID id,
+            @RequestHeader(value = "X-User-Role", required = false) String userRole,
+            @Valid @RequestBody CourseRequest request) {
+        requireInstructor(userRole);
         return courseService.updateCourse(id, toCourse(request));
     }
 
     @DeleteMapping("/courses/{id}")
-    public ResponseEntity<Void> deleteCourse(@PathVariable UUID id) {
+    public ResponseEntity<Void> deleteCourse(
+            @PathVariable UUID id,
+            @RequestHeader(value = "X-User-Role", required = false) String userRole) {
+        requireInstructor(userRole);
         courseService.deleteCourse(id);
         return ResponseEntity.noContent().build();
     }
@@ -103,6 +113,19 @@ public class CourseController {
         }
         Enrollment enrollment = courseService.enrollUser(id, userId);
         return ResponseEntity.created(URI.create("/enrollments/" + enrollment.getId())).body(enrollment);
+    }
+
+    @DeleteMapping("/courses/{id}/enroll")
+    public ResponseEntity<Void> unenroll(
+            @PathVariable UUID id,
+            @RequestHeader(value = "X-User-Id", required = false) UUID headerUserId,
+            @RequestParam(required = false) UUID userId) {
+        UUID resolvedUserId = headerUserId != null ? headerUserId : userId;
+        if (resolvedUserId == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "userId is required");
+        }
+        courseService.unenrollUser(id, resolvedUserId);
+        return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/courses/{id}/enrollments")
@@ -132,6 +155,16 @@ public class CourseController {
         course.setThumbnailUrl(request.thumbnailUrl());
         course.setTags(request.tags());
         return course;
+    }
+
+    // The gateway strips any client-supplied X-User-Role header and only sets
+    // a trusted one after successful JWT validation, so it's safe to trust
+    // here. Only instructor (and admin) accounts may create/edit/delete
+    // courses.
+    private void requireInstructor(String userRole) {
+        if (!"instructor".equalsIgnoreCase(userRole) && !"admin".equalsIgnoreCase(userRole)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only instructors can manage courses");
+        }
     }
 
     public record CourseRequest(

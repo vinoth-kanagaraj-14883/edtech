@@ -1,0 +1,141 @@
+groups:
+  - name: edtech-service-red-metrics
+    interval: 15s
+    rules:
+      # ------------------------------------------------------------------
+      # Normalized RED (Rate, Errors, Duration) metrics across all services.
+      #
+      # Each microservice exposes HTTP metrics under a DIFFERENT metric name
+      # and with slightly different labels (status vs status_code, route vs
+      # path, etc.). These recording rules normalize everything into a small
+      # set of common series keyed by the Prometheus `job` label, so the
+      # Grafana dashboards can be simple, portable, and identical across the
+      # Docker Compose and Kubernetes deployments.
+      #
+      #   edtech:request_rate:job   - requests/sec per job (5m window)
+      #   edtech:error_rate:job     - fraction of 5xx responses per job
+      #   edtech:latency_p99:job    - p99 request latency (seconds) per job
+      #   edtech:latency_p50:job    - p50 request latency (seconds) per job
+      # ------------------------------------------------------------------
+
+      # ---- Request rate (requests/sec, 5m) ----
+      - record: edtech:request_rate:job
+        expr: sum by (job) (rate(api_gateway_http_requests_total[5m]))
+        labels:
+          job: api-gateway
+      - record: edtech:request_rate:job
+        expr: sum by (job) (rate(user_service_http_requests_total[5m]))
+        labels:
+          job: user-service
+      - record: edtech:request_rate:job
+        expr: sum(rate(http_server_requests_seconds_count[5m]))
+        labels:
+          job: course-service
+      - record: edtech:request_rate:job
+        expr: sum(rate(http_requests_total{service="content-service"}[5m]))
+        labels:
+          job: content-service
+      - record: edtech:request_rate:job
+        expr: sum(rate(quiz_service_http_requests_total[5m]))
+        labels:
+          job: quiz-service
+      - record: edtech:request_rate:job
+        expr: sum(rate(notification_service_http_requests_total[5m]))
+        labels:
+          job: notification-service
+
+      # ---- Error rate (fraction of 5xx responses, 5m) ----
+      - record: edtech:error_rate:job
+        expr: |
+          sum(rate(api_gateway_http_requests_total{status=~"5.."}[5m]))
+          /
+          clamp_min(sum(rate(api_gateway_http_requests_total[5m])), 1)
+        labels:
+          job: api-gateway
+      - record: edtech:error_rate:job
+        expr: |
+          sum(rate(user_service_http_requests_total{status_code=~"5.."}[5m]))
+          /
+          clamp_min(sum(rate(user_service_http_requests_total[5m])), 1)
+        labels:
+          job: user-service
+      - record: edtech:error_rate:job
+        expr: |
+          sum(rate(http_server_requests_seconds_count{status=~"5.."}[5m]))
+          /
+          clamp_min(sum(rate(http_server_requests_seconds_count[5m])), 1)
+        labels:
+          job: course-service
+      - record: edtech:error_rate:job
+        expr: |
+          sum(rate(http_requests_total{service="content-service",status_code=~"5.."}[5m]))
+          /
+          clamp_min(sum(rate(http_requests_total{service="content-service"}[5m])), 1)
+        labels:
+          job: content-service
+      - record: edtech:error_rate:job
+        expr: |
+          sum(rate(quiz_service_http_requests_total{status=~"5.."}[5m]))
+          /
+          clamp_min(sum(rate(quiz_service_http_requests_total[5m])), 1)
+        labels:
+          job: quiz-service
+      - record: edtech:error_rate:job
+        expr: |
+          sum(rate(notification_service_http_requests_total{status=~"5.."}[5m]))
+          /
+          clamp_min(sum(rate(notification_service_http_requests_total[5m])), 1)
+        labels:
+          job: notification-service
+
+      # ---- p99 latency (seconds, 5m) ----
+      - record: edtech:latency_p99:job
+        expr: histogram_quantile(0.99, sum by (le) (rate(api_gateway_http_request_duration_seconds_bucket[5m])))
+        labels:
+          job: api-gateway
+      - record: edtech:latency_p99:job
+        expr: histogram_quantile(0.99, sum by (le) (rate(user_service_http_request_duration_seconds_bucket[5m])))
+        labels:
+          job: user-service
+      - record: edtech:latency_p99:job
+        expr: histogram_quantile(0.99, sum by (le) (rate(http_server_requests_seconds_bucket[5m])))
+        labels:
+          job: course-service
+      - record: edtech:latency_p99:job
+        expr: histogram_quantile(0.99, sum by (le) (rate(http_request_duration_seconds_bucket{service="content-service"}[5m])))
+        labels:
+          job: content-service
+      - record: edtech:latency_p99:job
+        expr: histogram_quantile(0.99, sum by (le) (rate(quiz_service_http_request_duration_seconds_bucket[5m])))
+        labels:
+          job: quiz-service
+      - record: edtech:latency_p99:job
+        expr: histogram_quantile(0.99, sum by (le) (rate(notification_service_http_request_duration_seconds_bucket[5m])))
+        labels:
+          job: notification-service
+
+      # ---- p50 latency (seconds, 5m) ----
+      - record: edtech:latency_p50:job
+        expr: histogram_quantile(0.50, sum by (le) (rate(api_gateway_http_request_duration_seconds_bucket[5m])))
+        labels:
+          job: api-gateway
+      - record: edtech:latency_p50:job
+        expr: histogram_quantile(0.50, sum by (le) (rate(user_service_http_request_duration_seconds_bucket[5m])))
+        labels:
+          job: user-service
+      - record: edtech:latency_p50:job
+        expr: histogram_quantile(0.50, sum by (le) (rate(http_server_requests_seconds_bucket[5m])))
+        labels:
+          job: course-service
+      - record: edtech:latency_p50:job
+        expr: histogram_quantile(0.50, sum by (le) (rate(http_request_duration_seconds_bucket{service="content-service"}[5m])))
+        labels:
+          job: content-service
+      - record: edtech:latency_p50:job
+        expr: histogram_quantile(0.50, sum by (le) (rate(quiz_service_http_request_duration_seconds_bucket[5m])))
+        labels:
+          job: quiz-service
+      - record: edtech:latency_p50:job
+        expr: histogram_quantile(0.50, sum by (le) (rate(notification_service_http_request_duration_seconds_bucket[5m])))
+        labels:
+          job: notification-service

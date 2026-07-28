@@ -12,6 +12,8 @@ data:
     global:
       scrape_interval: 15s
       evaluation_interval: 15s
+    rule_files:
+      - /etc/prometheus/rules/recording-rules.yml
     scrape_configs:
       - job_name: prometheus
         static_configs:
@@ -39,6 +41,24 @@ data:
           - source_labels: [__meta_kubernetes_pod_name]
             action: replace
             target_label: kubernetes_pod_name
+          # Normalize the `job` label to the app name so the shared recording
+          # rules and Grafana dashboards work identically in Compose and k8s.
+          # Prefer an explicit `prometheus.io/job` annotation, falling back to
+          # the standard `app`/`app.kubernetes.io/name` pod labels.
+          - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_job]
+            action: replace
+            target_label: job
+            regex: (.+)
+          - source_labels: [job, __meta_kubernetes_pod_label_app]
+            action: replace
+            regex: kubernetes-pods;(.+)
+            target_label: job
+            replacement: $1
+          - source_labels: [job, __meta_kubernetes_pod_label_app_kubernetes_io_name]
+            action: replace
+            regex: kubernetes-pods;(.+)
+            target_label: job
+            replacement: $1
 
       - job_name: kubernetes-services
         kubernetes_sd_configs:
@@ -83,6 +103,100 @@ data:
       - job_name: otel-collector
         static_configs:
           - targets: ['otel-collector.monitoring.svc.cluster.local:9464']
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-recording-rules
+  namespace: monitoring
+  labels:
+    app: prometheus
+    component: monitoring
+    part-of: edtech
+data:
+  recording-rules.yml: |
+    groups:
+      - name: edtech-service-red-metrics
+        interval: 15s
+        rules:
+          # Normalized RED metrics keyed by the `job` label (see the
+          # Compose observability/recording-rules.yml for full commentary).
+          # Request rate (req/s, 5m)
+          - record: edtech:request_rate:job
+            expr: sum by (job) (rate(api_gateway_http_requests_total[5m]))
+            labels: { job: api-gateway }
+          - record: edtech:request_rate:job
+            expr: sum by (job) (rate(user_service_http_requests_total[5m]))
+            labels: { job: user-service }
+          - record: edtech:request_rate:job
+            expr: sum(rate(http_server_requests_seconds_count[5m]))
+            labels: { job: course-service }
+          - record: edtech:request_rate:job
+            expr: sum(rate(http_requests_total{service="content-service"}[5m]))
+            labels: { job: content-service }
+          - record: edtech:request_rate:job
+            expr: sum(rate(quiz_service_http_requests_total[5m]))
+            labels: { job: quiz-service }
+          - record: edtech:request_rate:job
+            expr: sum(rate(notification_service_http_requests_total[5m]))
+            labels: { job: notification-service }
+          # Error rate (fraction of 5xx, 5m)
+          - record: edtech:error_rate:job
+            expr: sum(rate(api_gateway_http_requests_total{status=~"5.."}[5m])) / clamp_min(sum(rate(api_gateway_http_requests_total[5m])), 1)
+            labels: { job: api-gateway }
+          - record: edtech:error_rate:job
+            expr: sum(rate(user_service_http_requests_total{status_code=~"5.."}[5m])) / clamp_min(sum(rate(user_service_http_requests_total[5m])), 1)
+            labels: { job: user-service }
+          - record: edtech:error_rate:job
+            expr: sum(rate(http_server_requests_seconds_count{status=~"5.."}[5m])) / clamp_min(sum(rate(http_server_requests_seconds_count[5m])), 1)
+            labels: { job: course-service }
+          - record: edtech:error_rate:job
+            expr: sum(rate(http_requests_total{service="content-service",status_code=~"5.."}[5m])) / clamp_min(sum(rate(http_requests_total{service="content-service"}[5m])), 1)
+            labels: { job: content-service }
+          - record: edtech:error_rate:job
+            expr: sum(rate(quiz_service_http_requests_total{status=~"5.."}[5m])) / clamp_min(sum(rate(quiz_service_http_requests_total[5m])), 1)
+            labels: { job: quiz-service }
+          - record: edtech:error_rate:job
+            expr: sum(rate(notification_service_http_requests_total{status=~"5.."}[5m])) / clamp_min(sum(rate(notification_service_http_requests_total[5m])), 1)
+            labels: { job: notification-service }
+          # p99 latency (seconds, 5m)
+          - record: edtech:latency_p99:job
+            expr: histogram_quantile(0.99, sum by (le) (rate(api_gateway_http_request_duration_seconds_bucket[5m])))
+            labels: { job: api-gateway }
+          - record: edtech:latency_p99:job
+            expr: histogram_quantile(0.99, sum by (le) (rate(user_service_http_request_duration_seconds_bucket[5m])))
+            labels: { job: user-service }
+          - record: edtech:latency_p99:job
+            expr: histogram_quantile(0.99, sum by (le) (rate(http_server_requests_seconds_bucket[5m])))
+            labels: { job: course-service }
+          - record: edtech:latency_p99:job
+            expr: histogram_quantile(0.99, sum by (le) (rate(http_request_duration_seconds_bucket{service="content-service"}[5m])))
+            labels: { job: content-service }
+          - record: edtech:latency_p99:job
+            expr: histogram_quantile(0.99, sum by (le) (rate(quiz_service_http_request_duration_seconds_bucket[5m])))
+            labels: { job: quiz-service }
+          - record: edtech:latency_p99:job
+            expr: histogram_quantile(0.99, sum by (le) (rate(notification_service_http_request_duration_seconds_bucket[5m])))
+            labels: { job: notification-service }
+          # p50 latency (seconds, 5m)
+          - record: edtech:latency_p50:job
+            expr: histogram_quantile(0.50, sum by (le) (rate(api_gateway_http_request_duration_seconds_bucket[5m])))
+            labels: { job: api-gateway }
+          - record: edtech:latency_p50:job
+            expr: histogram_quantile(0.50, sum by (le) (rate(user_service_http_request_duration_seconds_bucket[5m])))
+            labels: { job: user-service }
+          - record: edtech:latency_p50:job
+            expr: histogram_quantile(0.50, sum by (le) (rate(http_server_requests_seconds_bucket[5m])))
+            labels: { job: course-service }
+          - record: edtech:latency_p50:job
+            expr: histogram_quantile(0.50, sum by (le) (rate(http_request_duration_seconds_bucket{service="content-service"}[5m])))
+            labels: { job: content-service }
+          - record: edtech:latency_p50:job
+            expr: histogram_quantile(0.50, sum by (le) (rate(quiz_service_http_request_duration_seconds_bucket[5m])))
+            labels: { job: quiz-service }
+          - record: edtech:latency_p50:job
+            expr: histogram_quantile(0.50, sum by (le) (rate(notification_service_http_request_duration_seconds_bucket[5m])))
+            labels: { job: notification-service }
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -157,12 +271,17 @@ spec:
           volumeMounts:
             - name: config
               mountPath: /etc/prometheus
+            - name: rules
+              mountPath: /etc/prometheus/rules
             - name: data
               mountPath: /prometheus
       volumes:
         - name: config
           configMap:
             name: prometheus-config
+        - name: rules
+          configMap:
+            name: prometheus-recording-rules
         - name: data
           persistentVolumeClaim:
             claimName: prometheus-data

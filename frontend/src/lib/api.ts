@@ -172,6 +172,16 @@ const normalizeEnrollment = (raw: Record<string, unknown>, courseId: string, les
   };
 };
 
+// Backend course-service returns Java enum names (e.g. "BEGINNER"), while the
+// frontend's CourseLevel type/UI uses lowercase kebab values.
+const normalizeLevel = (value: unknown): CourseLevel => {
+  const normalized = String(value ?? '').toLowerCase().replace(/_/g, '-');
+  if (normalized === 'beginner' || normalized === 'intermediate' || normalized === 'advanced' || normalized === 'all-levels') {
+    return normalized;
+  }
+  return 'all-levels';
+};
+
 const normalizeCourse = (raw: Record<string, unknown>): Course => {
   const lessonsRaw = Array.isArray(raw.lessons)
     ? raw.lessons
@@ -195,7 +205,10 @@ const normalizeCourse = (raw: Record<string, unknown>): Course => {
     description: String(raw.description ?? raw.summary ?? 'Course details coming soon.'),
     shortDescription: raw.shortDescription ? String(raw.shortDescription) : undefined,
     instructor: raw.instructor ? String(raw.instructor) : raw.instructorName ? String(raw.instructorName) : undefined,
-    level: (raw.level as CourseLevel) ?? 'all-levels',
+    instructorId: raw.instructorId ? String(raw.instructorId) : undefined,
+    price: raw.price !== undefined ? toNumber(raw.price) : undefined,
+    status: raw.status ? String(raw.status) : undefined,
+    level: normalizeLevel(raw.level),
     category: raw.category ? String(raw.category) : undefined,
     thumbnailUrl: raw.thumbnailUrl ? String(raw.thumbnailUrl) : undefined,
     durationHours: raw.durationHours ? toNumber(raw.durationHours) : raw.duration ? toNumber(raw.duration) : undefined,
@@ -208,15 +221,19 @@ const normalizeCourse = (raw: Record<string, unknown>): Course => {
   };
 };
 
-const normalizeQuestion = (raw: Record<string, unknown>, index = 0): Question => ({
-  id: String(raw.id ?? raw.questionId ?? `question-${index + 1}`),
-  prompt: String(raw.prompt ?? raw.question ?? 'Question prompt'),
-  type: (raw.type as Question['type']) ?? 'multiple_choice',
-  options: Array.isArray(raw.options) ? raw.options.map(String) : ['True', 'False'],
-  explanation: raw.explanation ? String(raw.explanation) : undefined,
-  correctAnswer: raw.correctAnswer ? String(raw.correctAnswer) : undefined,
-  points: raw.points ? toNumber(raw.points) : undefined
-});
+const normalizeQuestion = (raw: Record<string, unknown>, index = 0): Question => {
+  const type = (raw.type as Question['type']) ?? 'multiple_choice';
+
+  return {
+    id: String(raw.id ?? raw.questionId ?? `question-${index + 1}`),
+    prompt: String(raw.prompt ?? raw.question ?? 'Question prompt'),
+    type,
+    options: Array.isArray(raw.options) ? raw.options.map(String) : type === 'true_false' ? ['True', 'False'] : [],
+    explanation: raw.explanation ? String(raw.explanation) : undefined,
+    correctAnswer: raw.correctAnswer ? String(raw.correctAnswer) : undefined,
+    points: raw.points ? toNumber(raw.points) : undefined
+  };
+};
 
 const normalizeQuiz = (raw: Record<string, unknown>): Quiz => {
   const questionsRaw = Array.isArray(raw.questions)
@@ -373,13 +390,16 @@ export const updateProfile = async (payload: ProfilePayload, context: ApiContext
   );
 
 export const getCourses = async (query: CourseQuery = {}, context: ApiContext = {}): Promise<Course[]> => {
+  // course-service (Java) binds `level` to a Java enum (BEGINNER/INTERMEDIATE/
+  // ADVANCED); the frontend's filter UI uses lowercase values.
+  const backendLevel = query.level && query.level !== 'all' ? query.level.toUpperCase() : undefined;
   const path = withQuery('/api/courses', {
     search: query.search,
-    level: query.level && query.level !== 'all' ? query.level : undefined
+    level: backendLevel
   });
 
   return tryPaths(
-    [path, withQuery('/courses', { search: query.search, level: query.level })],
+    [path, withQuery('/courses', { search: query.search, level: backendLevel })],
     (payload) =>
       getCollection(payload, ['courses', 'items']).map((course) => normalizeCourse(course as Record<string, unknown>)),
     { token: context.token }
@@ -435,6 +455,148 @@ export const enrollInCourse = async (courseId: string, context: ApiContext = {})
     }
   );
 
+// Removes the current user's enrollment. course-service resolves the user
+// from the gateway-injected X-User-Id header, so no body is required.
+export const unenrollFromCourse = async (courseId: string, context: ApiContext = {}): Promise<void> => {
+  await tryPaths(
+    [`/api/courses/${courseId}/enroll`, `/courses/${courseId}/enroll`],
+    () => undefined,
+    {
+      method: 'DELETE',
+      token: context.token
+    }
+  );
+};
+
+export interface CreateCourseInput {
+  title: string;
+  description: string;
+  instructorId: string;
+  price?: number;
+  durationHours: number;
+  level: 'beginner' | 'intermediate' | 'advanced';
+  status?: 'DRAFT' | 'PUBLISHED' | 'ARCHIVED';
+  thumbnailUrl?: string;
+  tags?: string[];
+}
+
+// Instructor-only: course-service authorizes writes based on the
+// X-User-Role header the gateway sets after JWT validation (mirrors
+// quiz-service's createQuiz pattern) -- 403s for non-instructor accounts.
+export const createCourse = async (input: CreateCourseInput, context: ApiContext = {}): Promise<Course> =>
+  tryPaths(
+    ['/api/courses', '/courses'],
+    (payload) => normalizeCourse(payload as Record<string, unknown>),
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        title: input.title,
+        description: input.description,
+        instructorId: input.instructorId,
+        price: input.price ?? 0,
+        durationHours: input.durationHours,
+        level: input.level.toUpperCase(),
+        status: input.status ?? 'PUBLISHED',
+        thumbnailUrl: input.thumbnailUrl,
+        tags: input.tags ?? []
+      }),
+      token: context.token
+    }
+  );
+
+export const updateCourse = async (id: string, input: CreateCourseInput, context: ApiContext = {}): Promise<Course> =>
+  tryPaths(
+    [`/api/courses/${id}`, `/courses/${id}`],
+    (payload) => normalizeCourse(payload as Record<string, unknown>),
+    {
+      method: 'PUT',
+      body: JSON.stringify({
+        title: input.title,
+        description: input.description,
+        instructorId: input.instructorId,
+        price: input.price ?? 0,
+        durationHours: input.durationHours,
+        level: input.level.toUpperCase(),
+        status: input.status ?? 'PUBLISHED',
+        thumbnailUrl: input.thumbnailUrl,
+        tags: input.tags ?? []
+      }),
+      token: context.token
+    }
+  );
+
+export const deleteCourse = async (id: string, context: ApiContext = {}): Promise<void> => {
+  await tryPaths(
+    [`/api/courses/${id}`, `/courses/${id}`],
+    () => undefined,
+    {
+      method: 'DELETE',
+      token: context.token
+    }
+  );
+};
+
+// Creates a lesson (content-service) attached to a course, optionally with
+// a body of article/document content.
+export interface CreateLessonInput {
+  courseId: string;
+  title: string;
+  description?: string;
+  orderIndex: number;
+  durationMinutes?: number;
+  articleBody?: string;
+  videoUrl?: string;
+}
+
+export const createLesson = async (input: CreateLessonInput, context: ApiContext = {}): Promise<Lesson> => {
+  const lesson = await tryPaths(
+    ['/api/lessons', '/lessons'],
+    (payload) => normalizeLesson(((payload as { lesson?: unknown }).lesson ?? payload) as Record<string, unknown>, input.orderIndex, input.courseId),
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        courseId: input.courseId,
+        title: input.title,
+        description: input.description,
+        orderIndex: input.orderIndex,
+        durationSeconds: (input.durationMinutes ?? 5) * 60,
+        isPublished: true
+      }),
+      token: context.token
+    }
+  );
+
+  if (input.videoUrl) {
+    await tryPaths([`/api/content`, '/content'], () => undefined, {
+      method: 'POST',
+      body: JSON.stringify({
+        lessonId: lesson.id,
+        type: 'VIDEO',
+        url: input.videoUrl,
+        filename: `${input.title}.mp4`,
+        mimeType: 'video/mp4',
+        sizeBytes: 0
+      }),
+      token: context.token
+    }).catch(() => undefined);
+  } else if (input.articleBody) {
+    await tryPaths([`/api/content`, '/content'], () => undefined, {
+      method: 'POST',
+      body: JSON.stringify({
+        lessonId: lesson.id,
+        type: 'DOCUMENT',
+        url: `https://learn.eduforge.dev/articles/${lesson.id}`,
+        filename: `${input.title}.md`,
+        mimeType: 'text/markdown',
+        sizeBytes: new TextEncoder().encode(input.articleBody).length
+      }),
+      token: context.token
+    }).catch(() => undefined);
+  }
+
+  return lesson;
+};
+
 export const getLesson = async (courseId: string, lessonId: string, context: ApiContext = {}) =>
   tryPaths(
     [`/api/courses/${courseId}/lessons/${lessonId}`, `/api/lessons/${lessonId}`],
@@ -460,6 +622,16 @@ export const getQuizzes = async (context: ApiContext = {}): Promise<Quiz[]> =>
     { token: context.token }
   );
 
+// Unauthenticated preview used on the public landing page: a couple of
+// sample quizzes (correct answers redacted server-side) to entice visitors
+// to sign up before they can submit and see results.
+export const getPublicQuizzes = async (limit = 2): Promise<Quiz[]> =>
+  tryPaths(
+    [`/api/quizzes/public?limit=${limit}`, `/quizzes/public?limit=${limit}`],
+    (payload) =>
+      getCollection(payload, ['quizzes', 'items']).map((quiz) => normalizeQuiz(quiz as Record<string, unknown>))
+  );
+
 export const getQuiz = async (id: string, context: ApiContext = {}) =>
   tryPaths(
     [`/api/quizzes/${id}`, `/quizzes/${id}`],
@@ -467,13 +639,85 @@ export const getQuiz = async (id: string, context: ApiContext = {}) =>
     { token: context.token }
   );
 
-export const submitQuiz = async (quizId: string, submission: Submission, context: ApiContext = {}): Promise<Submission> =>
-  tryPaths(
+export interface QuizQuestionInput {
+  text: string;
+  questionType: 'multiple_choice' | 'true_false' | 'short_answer';
+  options?: string[];
+  correctAnswer: string;
+  points?: number;
+  orderIndex?: number;
+}
+
+export interface CreateQuizInput {
+  courseId: string;
+  title: string;
+  description?: string;
+  timeLimitMinutes?: number;
+  passingScore?: number;
+  isPublished?: boolean;
+  questions: QuizQuestionInput[];
+}
+
+// Instructor-only: creates a quiz, then adds each question sequentially.
+// quiz-service authorizes writes based on the X-User-Role header the
+// gateway sets after validating the JWT (see api-gateway authMiddleware),
+// so this will 403 for any non-instructor account.
+export const createQuiz = async (input: CreateQuizInput, context: ApiContext = {}): Promise<Quiz> => {
+  const quiz = await tryPaths(
+    ['/api/quizzes', '/quizzes'],
+    (payload) => normalizeQuiz(((payload as { quiz?: unknown }).quiz ?? payload) as Record<string, unknown>),
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        courseId: input.courseId,
+        title: input.title,
+        description: input.description,
+        timeLimitMinutes: input.timeLimitMinutes,
+        passingScore: input.passingScore,
+        isPublished: input.isPublished ?? true
+      }),
+      token: context.token
+    }
+  );
+
+  for (const [index, question] of input.questions.entries()) {
+    await tryPaths(
+      [`/api/quizzes/${quiz.id}/questions`, `/quizzes/${quiz.id}/questions`],
+      (payload) => payload,
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          text: question.text,
+          questionType: question.questionType,
+          options: question.options,
+          correctAnswer: question.correctAnswer,
+          points: question.points ?? 1,
+          orderIndex: question.orderIndex ?? index
+        }),
+        token: context.token
+      }
+    );
+  }
+
+  return getQuiz(quiz.id, context);
+};
+
+export const submitQuiz = async (quizId: string, submission: Submission, context: ApiContext = {}): Promise<Submission> => {
+  // quiz-service expects `answers` as an object keyed by question id
+  // (e.g. { "1": "answer text" }), not the array-of-{questionId,answer}
+  // shape used internally by the frontend for rendering/state.
+  const answersById = submission.answers.reduce<Record<string, string>>((acc, { questionId, answer }) => {
+    acc[questionId] = answer;
+    return acc;
+  }, {});
+
+  return tryPaths(
     [`/api/quizzes/${quizId}/submit`, `/quizzes/${quizId}/submit`],
     (payload) => payload as Submission,
     {
       method: 'POST',
-      body: JSON.stringify(submission),
+      body: JSON.stringify({ ...submission, answers: answersById }),
       token: context.token
     }
   );
+};

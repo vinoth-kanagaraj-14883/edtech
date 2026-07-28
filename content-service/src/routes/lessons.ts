@@ -1,3 +1,4 @@
+import type { NextFunction, Request, Response } from 'express';
 import { Router } from 'express';
 import { validate as isUuid } from 'uuid';
 
@@ -6,6 +7,18 @@ import { Content } from '../models/Content';
 import { Lesson } from '../models/Lesson';
 
 const router = Router();
+
+// The gateway strips any client-supplied X-User-Role header and only sets a
+// trusted one after successful JWT validation, so it's safe to trust here.
+// Only instructor (and admin) accounts may create/edit/delete lessons.
+const requireInstructor = (request: Request, response: Response, next: NextFunction): void => {
+  const role = request.header('X-User-Role');
+  if (role !== 'instructor' && role !== 'admin') {
+    response.status(403).json({ error: 'Only instructors can manage lessons.' });
+    return;
+  }
+  next();
+};
 
 const parsePositiveInteger = (value: unknown, fieldName: string): number => {
   const parsed = Number(value);
@@ -61,7 +74,7 @@ router.get('/', async (request, response, next) => {
   }
 });
 
-router.post('/', async (request, response, next) => {
+router.post('/', requireInstructor, async (request, response, next) => {
   try {
     const { courseId, title, description = null, orderIndex, durationSeconds, isPublished = false } = request.body as {
       courseId?: string;
@@ -116,7 +129,7 @@ router.get('/:id', async (request, response, next) => {
   }
 });
 
-router.put('/:id', async (request, response, next) => {
+router.put('/:id', requireInstructor, async (request, response, next) => {
   try {
     const { id } = request.params;
 
@@ -173,7 +186,7 @@ router.put('/:id', async (request, response, next) => {
   }
 });
 
-router.delete('/:id', async (request, response, next) => {
+router.delete('/:id', requireInstructor, async (request, response, next) => {
   try {
     const { id } = request.params;
 

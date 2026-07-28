@@ -4,17 +4,24 @@ import { getQuizzes } from '@/lib/api';
 import { requireServerAuth } from '@/lib/server-auth';
 
 export default async function QuizzesPage() {
-  const { token } = requireServerAuth();
+  const { token, user } = requireServerAuth();
 
   try {
     const quizzes = await getQuizzes({ token });
 
     return (
       <div className="space-y-8">
-        <section className="surface p-8">
-          <p className="text-sm font-semibold uppercase tracking-[0.3em] text-brand-100">Assessments</p>
-          <h1 className="mt-3 text-4xl font-semibold tracking-tight text-white">Practice quizzes</h1>
-          <p className="mt-4 max-w-3xl text-slate-300">Validate understanding, reinforce concepts, and review your scores with structured quizzes.</p>
+        <section className="surface flex flex-wrap items-start justify-between gap-4 p-8">
+          <div>
+            <p className="text-sm font-semibold uppercase tracking-[0.3em] text-brand-100">Assessments</p>
+            <h1 className="mt-3 text-4xl font-semibold tracking-tight text-white">Practice quizzes</h1>
+            <p className="mt-4 max-w-3xl text-slate-300">Validate understanding, reinforce concepts, and review your scores with structured quizzes.</p>
+          </div>
+          {user.role === 'instructor' ? (
+            <Link href="/quizzes/create" className="primary-button whitespace-nowrap">
+              + Create quiz
+            </Link>
+          ) : null}
         </section>
 
         {quizzes.length > 0 ? (

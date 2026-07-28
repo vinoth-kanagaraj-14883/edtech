@@ -1,3 +1,4 @@
+import type { NextFunction, Request, Response } from 'express';
 import { Router } from 'express';
 import { validate as isUuid } from 'uuid';
 
@@ -6,6 +7,17 @@ import { Content, ContentType } from '../models/Content';
 import { Lesson } from '../models/Lesson';
 
 const router = Router();
+
+// See lessons.ts for rationale: the gateway sets a trusted X-User-Role
+// header after JWT validation, so it's safe to authorize writes on it here.
+const requireInstructor = (request: Request, response: Response, next: NextFunction): void => {
+  const role = request.header('X-User-Role');
+  if (role !== 'instructor' && role !== 'admin') {
+    response.status(403).json({ error: 'Only instructors can manage content.' });
+    return;
+  }
+  next();
+};
 
 const parseSizeBytes = (value: unknown): number => {
   const parsed = Number(value);
@@ -45,7 +57,7 @@ router.get('/:lessonId', async (request, response, next) => {
   }
 });
 
-router.post('/', async (request, response, next) => {
+router.post('/', requireInstructor, async (request, response, next) => {
   try {
     const { lessonId, type, url, filename, mimeType, sizeBytes } = request.body as {
       lessonId?: string;
@@ -99,7 +111,7 @@ router.post('/', async (request, response, next) => {
   }
 });
 
-router.put('/:id', async (request, response, next) => {
+router.put('/:id', requireInstructor, async (request, response, next) => {
   try {
     const { id } = request.params;
 
@@ -168,7 +180,7 @@ router.put('/:id', async (request, response, next) => {
   }
 });
 
-router.delete('/:id', async (request, response, next) => {
+router.delete('/:id', requireInstructor, async (request, response, next) => {
   try {
     const { id } = request.params;
 

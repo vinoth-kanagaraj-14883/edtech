@@ -1021,7 +1021,7 @@ func shouldSkipSecurity(path string) bool {
 	if path == "/health" || path == "/ready" || path == "/metrics" {
 		return true
 	}
-	return isPublicAuthPath(path)
+	return isPublicAuthPath(path) || isPublicQuizPreviewPath(path)
 }
 
 // isPublicAuthPath reports whether the request targets an authentication
@@ -1033,6 +1033,22 @@ func isPublicAuthPath(path string) bool {
 	case "/auth/register", "/auth/login", "/auth/refresh",
 		"/api/auth/register", "/api/auth/login", "/api/auth/refresh",
 		"/api/v1/auth/register", "/api/v1/auth/login", "/api/v1/auth/refresh":
+		return true
+	default:
+		return false
+	}
+}
+
+// isPublicQuizPreviewPath reports whether the request targets the
+// unauthenticated quiz preview endpoint used by the public/marketing
+// landing page to show a couple of sample quizzes before sign-up. The
+// downstream quiz-service itself limits this endpoint to a handful of
+// published quizzes with correct answers redacted, so it's safe to expose
+// without a bearer token.
+func isPublicQuizPreviewPath(path string) bool {
+	trimmed := strings.TrimRight(path, "/")
+	switch trimmed {
+	case "/quizzes/public", "/api/quizzes/public", "/api/v1/quizzes/public":
 		return true
 	default:
 		return false

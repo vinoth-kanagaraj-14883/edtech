@@ -31,9 +31,12 @@ services:
 
   frontend:
     environment:
-      # Browser-side spans can't resolve Docker-internal service names, so
-      # point at the host-published collector port instead.
-      OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: http://localhost:4318/v1/traces
+      # Consumed SERVER-SIDE by the Next.js proxy route
+      # (app/api/proxy/[...path]/route.ts) when forwarding browser-emitted
+      # spans, so this must be the Docker-internal collector address, not a
+      # browser-facing one (the browser always POSTs to the same-origin
+      # `/api/proxy/otel/...` path, never directly to this URL).
+      OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: http://otel-collector:4318/v1/traces
 
   otel-collector:
     image: otel/opentelemetry-collector-contrib:0.103.1
@@ -55,6 +58,7 @@ services:
       - --web.enable-lifecycle
     volumes:
       - ./observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./observability/recording-rules.yml:/etc/prometheus/recording-rules.yml:ro
     ports:
       - "${PROMETHEUS_PORT:-9090}:9090"
     depends_on:
@@ -66,6 +70,11 @@ services:
     environment:
       GF_SECURITY_ADMIN_USER: admin
       GF_SECURITY_ADMIN_PASSWORD: admin
+      # Auto-open the overview dashboard as the landing page.
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/dashboards/edtech-overview.json
+    volumes:
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
     ports:
       - "${GRAFANA_PORT:-3001}:3000"
     depends_on:

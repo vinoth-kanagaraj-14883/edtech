@@ -27,3 +27,16 @@ resources:
   - hpa/hpa.yaml
   - poddisruptionbudgets/pdb.yaml
   - networkpolicies/networkpolicy.yaml
+
+# Grafana dashboard JSON is generated into a ConfigMap from the shared,
+# single-source-of-truth dashboard files under monitoring/grafana/dashboards/
+# (the same files mounted by Docker Compose), so Compose and k8s never drift.
+configMapGenerator:
+  - name: grafana-dashboards
+    namespace: monitoring
+    files:
+      - ../../monitoring/grafana/dashboards/edtech-overview.json
+      - ../../monitoring/grafana/dashboards/edtech-service-detail.json
+
+generatorOptions:
+  disableNameSuffixHash: true

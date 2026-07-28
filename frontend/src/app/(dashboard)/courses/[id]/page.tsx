@@ -1,5 +1,6 @@
 import Link from 'next/link';
 
+import DeleteCourseButton from '@/components/DeleteCourseButton';
 import EnrollButton from '@/components/EnrollButton';
 import ProgressBar from '@/components/ProgressBar';
 import { getCourse } from '@/lib/api';
@@ -12,10 +13,11 @@ interface CourseDetailPageProps {
 }
 
 export default async function CourseDetailPage({ params }: CourseDetailPageProps) {
-  const { token } = requireServerAuth();
+  const { token, user } = requireServerAuth();
 
   try {
     const course = await getCourse(params.id, { token });
+    const isOwner = user.role === 'instructor' && course.instructorId === user.id;
 
     return (
       <div className="space-y-8">
@@ -29,9 +31,21 @@ export default async function CourseDetailPage({ params }: CourseDetailPageProps
                 {course.instructor ? <span>Instructor: {course.instructor}</span> : null}
                 {course.category ? <span>• {course.category}</span> : null}
                 {course.durationHours ? <span>• {course.durationHours} hours</span> : null}
+                {typeof course.price === 'number' ? <span>• {course.price > 0 ? `$${course.price.toFixed(2)}` : 'Free'}</span> : null}
               </div>
             </div>
-            <EnrollButton courseId={course.id} enrolled={course.enrolled} />
+            <div className="flex flex-col items-end gap-3">
+              {isOwner ? (
+                <div className="flex items-center gap-4">
+                  <Link href={`/courses/${course.id}/edit`} className="secondary-button">
+                    Edit course
+                  </Link>
+                  <DeleteCourseButton courseId={course.id} redirectTo="/courses" />
+                </div>
+              ) : (
+                <EnrollButton courseId={course.id} enrolled={course.enrolled} />
+              )}
+            </div>
           </div>
 
           {typeof course.progress === 'number' && course.progress > 0 ? <ProgressBar value={course.progress} label="Current progress" /> : null}

@@ -1,13 +1,20 @@
 import Link from 'next/link';
 
+import DeleteCourseButton from '@/components/DeleteCourseButton';
 import ProgressBar from '@/components/ProgressBar';
+import UnenrollButton from '@/components/UnenrollButton';
 import type { Course } from '@/types';
 
 interface CourseCardProps {
   course: Course;
+  currentUserId?: string;
+  currentUserRole?: string;
+  showUnenroll?: boolean;
 }
 
-export default function CourseCard({ course }: CourseCardProps) {
+export default function CourseCard({ course, currentUserId, currentUserRole, showUnenroll }: CourseCardProps) {
+  const isOwner = currentUserRole === 'instructor' && currentUserId && course.instructorId === currentUserId;
+
   return (
     <article className="surface flex h-full flex-col overflow-hidden">
       <div className="flex h-40 items-center justify-center bg-gradient-to-br from-brand-600/20 via-slate-900 to-slate-950 text-center">
@@ -33,9 +40,20 @@ export default function CourseCard({ course }: CourseCardProps) {
 
         <div className="mt-auto flex items-center justify-between gap-3 pt-2">
           <span className="text-xs uppercase tracking-[0.24em] text-slate-500">{course.lessons.length} lessons</span>
-          <Link href={`/courses/${course.id}`} className="primary-button">
-            View course
-          </Link>
+          <div className="flex items-center gap-3">
+            {isOwner ? (
+              <>
+                <Link href={`/courses/${course.id}/edit`} className="text-xs font-medium text-slate-300 hover:text-brand-100">
+                  Edit
+                </Link>
+                <DeleteCourseButton courseId={course.id} />
+              </>
+            ) : null}
+            {showUnenroll && course.enrolled ? <UnenrollButton courseId={course.id} /> : null}
+            <Link href={`/courses/${course.id}`} className="primary-button">
+              View course
+            </Link>
+          </div>
         </div>
       </div>
     </article>

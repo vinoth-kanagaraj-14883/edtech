@@ -1,3 +1,5 @@
+import Link from 'next/link';
+
 import CourseCard from '@/components/CourseCard';
 import { getCourses } from '@/lib/api';
 import { requireServerAuth } from '@/lib/server-auth';
@@ -13,7 +15,7 @@ interface CoursesPageProps {
 const readParam = (value?: string | string[]) => (Array.isArray(value) ? value[0] : value);
 
 export default async function CoursesPage({ searchParams }: CoursesPageProps) {
-  const { token } = requireServerAuth();
+  const { token, user } = requireServerAuth();
   const search = readParam(searchParams?.search) ?? '';
   const level = readParam(searchParams?.level) ?? 'all';
 
@@ -26,13 +28,55 @@ export default async function CoursesPage({ searchParams }: CoursesPageProps) {
     error = courseError instanceof Error ? courseError.message : 'Unable to load courses.';
   }
 
+  const isInstructor = user.role === 'instructor';
+  const myCourses = isInstructor ? courses.filter((course) => course.instructorId === user.id) : [];
+
   return (
     <div className="space-y-8">
+      <section className="surface flex flex-wrap items-start justify-between gap-6 p-8">
+        <div className="space-y-3">
+          <p className="text-sm font-semibold uppercase tracking-[0.3em] text-brand-100">
+            {isInstructor ? 'Instructor dashboard' : 'Course catalog'}
+          </p>
+          <h1 className="text-4xl font-semibold tracking-tight text-white">
+            {isInstructor ? 'Manage your courses' : 'Explore your next learning path'}
+          </h1>
+          <p className="max-w-3xl text-slate-300">
+            {isInstructor
+              ? 'Create new courses, edit your existing content, and see what every student can browse and enroll in.'
+              : 'Search the full course library, filter by level, and jump back into the content that matters most.'}
+          </p>
+        </div>
+        {isInstructor ? (
+          <Link href="/courses/create" className="primary-button whitespace-nowrap">
+            + Create course
+          </Link>
+        ) : null}
+      </section>
+
+      {isInstructor ? (
+        <section className="space-y-4">
+          <h2 className="section-title">Your courses</h2>
+          {myCourses.length > 0 ? (
+            <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+              {myCourses.map((course) => (
+                <CourseCard key={course.id} course={course} currentUserId={user.id} currentUserRole={user.role} />
+              ))}
+            </div>
+          ) : (
+            <div className="surface p-8 text-sm text-slate-300">
+              You haven&apos;t created any courses yet. Use the &quot;Create course&quot; button above to publish your first one.
+            </div>
+          )}
+        </section>
+      ) : null}
+
       <section className="surface p-8">
         <div className="space-y-3">
-          <p className="text-sm font-semibold uppercase tracking-[0.3em] text-brand-100">Course catalog</p>
-          <h1 className="text-4xl font-semibold tracking-tight text-white">Explore your next learning path</h1>
-          <p className="max-w-3xl text-slate-300">Search the full course library, filter by level, and jump back into the content that matters most.</p>
+          <p className="text-sm font-semibold uppercase tracking-[0.3em] text-brand-100">
+            {isInstructor ? 'Full catalog' : 'Browse'}
+          </p>
+          <h2 className="text-2xl font-semibold text-white">All courses</h2>
         </div>
 
         <form className="mt-8 grid gap-4 md:grid-cols-[minmax(0,1fr)_220px_auto]">
@@ -51,7 +95,9 @@ export default async function CoursesPage({ searchParams }: CoursesPageProps) {
 
       {courses.length > 0 ? (
         <section className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-          {courses.map((course) => <CourseCard key={course.id} course={course} />)}
+          {courses.map((course) => (
+            <CourseCard key={course.id} course={course} currentUserId={user.id} currentUserRole={user.role} showUnenroll={!isInstructor} />
+          ))}
         </section>
       ) : (
         <div className="surface p-8 text-sm text-slate-300">No courses matched your current search. Try another keyword or filter.</div>

@@ -3,7 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
-import { enrollInCourse } from '@/lib/api';
+import { enrollInCourse, unenrollFromCourse } from '@/lib/api';
 
 interface EnrollButtonProps {
   courseId: string;
@@ -30,8 +30,34 @@ export default function EnrollButton({ courseId, enrolled }: EnrollButtonProps) 
     }
   };
 
+  const handleUnenroll = async () => {
+    if (!window.confirm('Remove this course from your enrolled list? Your progress will be lost.')) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError(null);
+      await unenrollFromCourse(courseId);
+      setMessage(null);
+      router.refresh();
+    } catch (unenrollError) {
+      setError(unenrollError instanceof Error ? unenrollError.message : 'Unable to unenroll right now.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   if (enrolled) {
-    return <span className="secondary-button">Enrolled</span>;
+    return (
+      <div className="flex items-center gap-3">
+        <span className="secondary-button">Enrolled</span>
+        <button type="button" onClick={handleUnenroll} disabled={loading} className="text-xs font-medium text-rose-300 hover:text-rose-200">
+          {loading ? 'Removing…' : 'Unenroll'}
+        </button>
+        {error ? <p className="text-sm text-rose-300">{error}</p> : null}
+      </div>
+    );
   }
 
   return (

@@ -30,6 +30,7 @@ const buildTargetUrl = (request: NextRequest, path: string[]) => {
 };
 
 const proxy = async (request: NextRequest, { params }: { params: { path: string[] } }) => {
+  const isOtel = params.path[0] === 'otel';
   const target = buildTargetUrl(request, params.path);
   if (!target) {
     return new NextResponse(null, { status: 204 });
@@ -47,25 +48,40 @@ const proxy = async (request: NextRequest, { params }: { params: { path: string[
     headers.set('Authorization', 'Bearer ' + token);
   }
 
-  const body = request.method === 'GET' || request.method === 'HEAD' ? undefined : await request.arrayBuffer();
+  try {
+    const body = request.method === 'GET' || request.method === 'HEAD' ? undefined : await request.arrayBuffer();
 
-  const response = await fetch(target, {
-    method: request.method,
-    headers,
-    body,
-    cache: 'no-store',
-    redirect: 'manual'
-  });
+    const response = await fetch(target, {
+      method: request.method,
+      headers,
+      body,
+      cache: 'no-store',
+      redirect: 'manual'
+    });
 
-  const responseHeaders = new Headers(response.headers);
-  responseHeaders.delete('content-encoding');
-  responseHeaders.delete('transfer-encoding');
+    const responseHeaders = new Headers(response.headers);
+    responseHeaders.delete('content-encoding');
+    responseHeaders.delete('transfer-encoding');
 
-  return new NextResponse(response.body, {
-    status: response.status,
-    statusText: response.statusText,
-    headers: responseHeaders
-  });
+    return new NextResponse(response.body, {
+      status: response.status,
+      statusText: response.statusText,
+      headers: responseHeaders
+    });
+  } catch (error) {
+    // Telemetry export is best-effort: if the collector is unreachable,
+    // fail silently (204) instead of surfacing a 500 in the browser console
+    // for every failed trace/metric batch.
+    if (isOtel) {
+      return new NextResponse(null, { status: 204 });
+    }
+
+    console.error('proxy request failed', { target: target.toString(), error });
+    return NextResponse.json(
+      { error: 'upstream_unreachable', message: 'Unable to reach the upstream service.' },
+      { status: 502 }
+    );
+  }
 };
 
 export const dynamic = 'force-dynamic';

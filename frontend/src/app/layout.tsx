@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
 
+import Footer from '@/components/Footer';
 import Navigation from '@/components/Navigation';
 import TelemetryProvider from '@/components/TelemetryProvider';
 
@@ -11,7 +12,12 @@ export const metadata: Metadata = {
     default: 'EduForge',
     template: '%s | EduForge'
   },
-  description: 'A modern learning platform for courses, lessons, quizzes, and personalized progress tracking.'
+  description: 'A modern learning platform for courses, lessons, quizzes, and personalized progress tracking.',
+  icons: {
+    icon: '/logo.png',
+    shortcut: '/logo.png',
+    apple: '/logo.png'
+  }
 };
 
 interface RootLayoutProps {
@@ -23,9 +29,10 @@ export default function RootLayout({ children }: RootLayoutProps) {
     <html lang="en">
       <body>
         <TelemetryProvider />
-        <div className="min-h-screen">
+        <div className="flex min-h-screen flex-col">
           <Navigation />
-          <main className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">{children}</main>
+          <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-10 sm:px-6 lg:px-8">{children}</main>
+          <Footer />
         </div>
       </body>
     </html>

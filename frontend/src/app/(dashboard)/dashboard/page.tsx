@@ -61,7 +61,9 @@ export default async function DashboardPage() {
 
         {courses.length > 0 ? (
           <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-            {courses.map((course) => <CourseCard key={course.id} course={course} />)}
+            {courses.map((course) => (
+              <CourseCard key={course.id} course={course} currentUserId={user.id} currentUserRole={user.role} showUnenroll />
+            ))}
           </div>
         ) : (
           <div className="surface p-8 text-sm text-slate-300">You are not enrolled in any courses yet. Explore the catalog to get started.</div>

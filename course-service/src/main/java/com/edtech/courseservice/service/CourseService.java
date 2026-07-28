@@ -102,6 +102,13 @@ public class CourseService {
         return enrollmentRepository.findByCourseId(courseId);
     }
 
+    @Transactional
+    public void unenrollUser(UUID courseId, UUID userId) {
+        Enrollment enrollment = enrollmentRepository.findByUserIdAndCourseId(userId, courseId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Enrollment not found"));
+        enrollmentRepository.delete(enrollment);
+    }
+
     public List<Enrollment> getUserEnrollments(UUID userId) {
         return enrollmentRepository.findByUserId(userId);
     }

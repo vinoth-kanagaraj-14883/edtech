@@ -31,6 +31,7 @@ services:
     volumes:
       - mysql-data:/var/lib/mysql
       - ./mysql-init:/docker-entrypoint-initdb.d:ro
+      - mysql-socket:/var/run/mysqld
     healthcheck:
       test: ["CMD-SHELL", "mysqladmin ping -uroot -proot_password"]
       interval: 10s
@@ -136,7 +137,17 @@ services:
     container_name: edtech-quiz-service
     environment:
       PORT: 8004
-      DATABASE_URL: mysql2://edtech:${MYSQL_PASSWORD:-edtech_password}@mysql:3306/quizdb?ssl_mode=disabled
+      # NOTE: intentionally no DATABASE_URL here. sinatra-activerecord calls
+      # ActiveRecord::Base.establish_connection(ENV['DATABASE_URL']) directly
+      # (raw URL string) when that env var is present, which bypasses
+      # config/database.yml entirely. We connect via a shared Unix socket
+      # (see DB_SOCKET/volumes below) instead of TCP so no TLS negotiation
+      # ever occurs: MariaDB Connector/C (used by the mysql2 gem on Alpine)
+      # opportunistically attempts TLS over TCP even with `ssl_mode:
+      # disabled`, and then rejects MySQL's self-signed certificate. Unix
+      # sockets have no network transport to encrypt, so this sidesteps the
+      # issue entirely.
+      DB_SOCKET: /var/run/mysqld/mysqld.sock
       DB_HOST: mysql
       DB_PORT: 3306
       DB_USER: ${MYSQL_USER:-edtech}
@@ -145,6 +156,8 @@ services:
       OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
     ports:
       - "8004:8004"
+    volumes:
+      - mysql-socket:/var/run/mysqld
     depends_on:
       mysql:
         condition: service_healthy
@@ -182,4 +195,5 @@ services:
 volumes:
   postgres-data:
   mysql-data:
+  mysql-socket:
   redis-data:

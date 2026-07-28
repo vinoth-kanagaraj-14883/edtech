@@ -1,7 +1,7 @@
 export type UserRole = 'student' | 'instructor' | 'admin';
 export type CourseLevel = 'beginner' | 'intermediate' | 'advanced' | 'all-levels';
 export type ContentType = 'video' | 'article' | 'quiz' | 'assignment' | 'link';
-export type QuestionType = 'multiple_choice' | 'true_false';
+export type QuestionType = 'multiple_choice' | 'true_false' | 'short_answer';
 
 export interface User {
   id: string;
@@ -71,6 +71,7 @@ export interface SubmissionAnswer {
 export interface Submission {
   id?: string;
   quizId: string;
+  userId?: string;
   answers: SubmissionAnswer[];
   score?: number;
   correctCount?: number;
@@ -99,6 +100,9 @@ export interface Course {
   description: string;
   shortDescription?: string;
   instructor?: string;
+  instructorId?: string;
+  price?: number;
+  status?: string;
   level: CourseLevel;
   category?: string;
   thumbnailUrl?: string;

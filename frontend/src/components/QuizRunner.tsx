@@ -8,9 +8,10 @@ import type { Quiz, Submission } from '@/types';
 
 interface QuizRunnerProps {
   quiz: Quiz;
+  userId: string;
 }
 
-export default function QuizRunner({ quiz }: QuizRunnerProps) {
+export default function QuizRunner({ quiz, userId }: QuizRunnerProps) {
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -29,6 +30,7 @@ export default function QuizRunner({ quiz }: QuizRunnerProps) {
 
       const payload: Submission = {
         quizId: quiz.id,
+        userId,
         answers: quiz.questions.map((question) => ({
           questionId: question.id,
           answer: answers[question.id] ?? ''
