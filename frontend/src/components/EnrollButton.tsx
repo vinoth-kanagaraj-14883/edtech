@@ -52,21 +52,21 @@ export default function EnrollButton({ courseId, enrolled }: EnrollButtonProps) 
     return (
       <div className="flex items-center gap-3">
         <span className="secondary-button">Enrolled</span>
-        <button type="button" onClick={handleUnenroll} disabled={loading} className="text-xs font-medium text-rose-300 hover:text-rose-200">
+        <button type="button" onClick={handleUnenroll} disabled={loading} className="text-xs font-medium text-rose-600 hover:text-rose-700">
           {loading ? 'Removing…' : 'Unenroll'}
         </button>
-        {error ? <p className="text-sm text-rose-300">{error}</p> : null}
+        {error ? <p className="text-sm text-rose-600">{error}</p> : null}
       </div>
     );
   }
 
   return (
     <div className="space-y-3">
-      <button type="button" onClick={handleEnroll} className="primary-button" disabled={loading}>
+      <button type="button" onClick={handleEnroll} className="primary-button w-full" disabled={loading}>
         {loading ? 'Enrolling…' : 'Enroll now'}
       </button>
-      {message ? <p className="text-sm text-emerald-300">{message}</p> : null}
-      {error ? <p className="text-sm text-rose-300">{error}</p> : null}
+      {message ? <p className="text-sm text-emerald-600">{message}</p> : null}
+      {error ? <p className="text-sm text-rose-600">{error}</p> : null}
     </div>
   );
 }

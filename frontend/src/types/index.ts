@@ -107,6 +107,10 @@ export interface Course {
   category?: string;
   thumbnailUrl?: string;
   durationHours?: number;
+  rating?: number;
+  ratingCount?: number;
+  studentCount?: number;
+  bestseller?: boolean;
   tags?: string[];
   lessons: Lesson[];
   quizIds?: string[];

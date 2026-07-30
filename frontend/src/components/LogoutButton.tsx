@@ -22,7 +22,7 @@ export default function LogoutButton() {
   };
 
   return (
-    <button type="button" onClick={handleLogout} className="secondary-button" disabled={loading}>
+    <button type="button" onClick={handleLogout} className="secondary-button px-4 py-2" disabled={loading}>
       {loading ? 'Signing out…' : 'Logout'}
     </button>
   );

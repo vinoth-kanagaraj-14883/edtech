@@ -22,6 +22,11 @@ configMapGenerator:
     files:
       - ../../monitoring/grafana/dashboards/edtech-overview.json
       - ../../monitoring/grafana/dashboards/edtech-service-detail.json
+      - ../../monitoring/grafana/dashboards/edtech-http-l7.json
+      - ../../monitoring/grafana/dashboards/edtech-infra-nodes.json
+      - ../../monitoring/grafana/dashboards/edtech-infra-k8s.json
+      - ../../monitoring/grafana/dashboards/edtech-app-runtime.json
+      - ../../monitoring/grafana/dashboards/edtech-slo.json
 
 generatorOptions:
   disableNameSuffixHash: true

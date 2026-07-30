@@ -50,11 +50,11 @@ export default function QuizRunner({ quiz, userId }: QuizRunnerProps) {
     <div className="space-y-6">
       <div className="surface flex flex-wrap items-center justify-between gap-4 p-6">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-brand-100">Assessment</p>
-          <h1 className="mt-2 text-3xl font-semibold text-white">{quiz.title}</h1>
-          {quiz.description ? <p className="mt-3 text-slate-300">{quiz.description}</p> : null}
+          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-brand-600">Assessment</p>
+          <h1 className="mt-2 text-3xl font-semibold text-ink-900">{quiz.title}</h1>
+          {quiz.description ? <p className="mt-3 text-ink-700">{quiz.description}</p> : null}
         </div>
-        <div className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-3 text-sm text-slate-300">
+        <div className="rounded-2xl border border-ink-300/60 bg-white px-4 py-3 text-sm text-ink-700">
           {answeredCount}/{quiz.questions.length} answered
         </div>
       </div>
@@ -69,11 +69,11 @@ export default function QuizRunner({ quiz, userId }: QuizRunnerProps) {
         <button type="button" onClick={handleSubmit} className="primary-button" disabled={submitting || answeredCount !== quiz.questions.length}>
           {submitting ? 'Submitting…' : 'Submit quiz'}
         </button>
-        {answeredCount !== quiz.questions.length ? <p className="text-sm text-slate-400">Answer every question before submitting.</p> : null}
-        {error ? <p className="text-sm text-rose-300">{error}</p> : null}
+        {answeredCount !== quiz.questions.length ? <p className="text-sm text-ink-500">Answer every question before submitting.</p> : null}
+        {error ? <p className="text-sm text-rose-600">{error}</p> : null}
         {result ? (
-          <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-5 text-sm text-emerald-100">
-            <p className="text-lg font-semibold text-white">Results</p>
+          <div className="rounded-2xl border border-emerald-300 bg-emerald-50 p-5 text-sm text-emerald-800">
+            <p className="text-lg font-semibold text-emerald-900">Results</p>
             <p className="mt-2">
               Score: {result.score ?? 0}
               {typeof result.totalQuestions === 'number' ? ` / ${result.totalQuestions}` : ''}

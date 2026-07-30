@@ -24,18 +24,18 @@ export default async function LessonPage({ params }: LessonPageProps) {
 
     return (
       <div className="space-y-8">
-        <div className="flex items-center gap-3 text-sm text-slate-400">
-          <Link href={`/courses/${course.id}`} className="hover:text-white">{course.title}</Link>
+        <div className="flex items-center gap-3 text-sm text-ink-500">
+          <Link href={`/courses/${course.id}`} className="hover:text-brand-600">{course.title}</Link>
           <span>→</span>
-          <span className="text-white">{lesson.title}</span>
+          <span className="text-ink-900">{lesson.title}</span>
         </div>
 
         <section className="surface overflow-hidden">
-          <div className="flex h-[320px] items-center justify-center bg-gradient-to-br from-slate-900 via-brand-700/20 to-slate-950">
+          <div className="flex h-[320px] items-center justify-center bg-gradient-to-br from-muted via-brand-50 to-white">
             <div className="text-center">
-              <p className="text-sm font-semibold uppercase tracking-[0.3em] text-brand-100">Video lesson</p>
-              <h1 className="mt-3 text-3xl font-semibold text-white">{lesson.title}</h1>
-              <p className="mt-3 text-sm text-slate-300">Video player placeholder</p>
+              <p className="text-sm font-semibold uppercase tracking-[0.3em] text-brand-600">Video lesson</p>
+              <h1 className="mt-3 text-3xl font-semibold text-ink-900">{lesson.title}</h1>
+              <p className="mt-3 text-sm text-ink-700">Video player placeholder</p>
             </div>
           </div>
 
@@ -43,15 +43,15 @@ export default async function LessonPage({ params }: LessonPageProps) {
             <div className="space-y-6">
               <div>
                 <h2 className="section-title">Lesson content</h2>
-                <p className="mt-4 whitespace-pre-line text-slate-300">{lesson.content?.body ?? lesson.summary ?? 'Lesson content will appear here once published by the instructor.'}</p>
+                <p className="mt-4 whitespace-pre-line text-ink-700">{lesson.content?.body ?? lesson.summary ?? 'Lesson content will appear here once published by the instructor.'}</p>
               </div>
 
               {lesson.content?.resources && lesson.content.resources.length > 0 ? (
                 <div className="space-y-3">
-                  <h3 className="text-lg font-semibold text-white">Resources</h3>
-                  <ul className="space-y-2 text-sm text-brand-100">
+                  <h3 className="text-lg font-semibold text-ink-900">Resources</h3>
+                  <ul className="space-y-2 text-sm text-brand-600">
                     {lesson.content.resources.map((resource) => (
-                      <li key={resource.url}><a href={resource.url} target="_blank" rel="noreferrer" className="hover:text-white">{resource.label}</a></li>
+                      <li key={resource.url}><a href={resource.url} target="_blank" rel="noreferrer" className="hover:text-brand-700">{resource.label}</a></li>
                     ))}
                   </ul>
                 </div>
@@ -59,9 +59,9 @@ export default async function LessonPage({ params }: LessonPageProps) {
             </div>
 
             <aside className="space-y-5">
-              <div className="rounded-2xl border border-slate-800 bg-slate-950/70 p-6">
-                <h3 className="text-lg font-semibold text-white">Progress checkpoint</h3>
-                <p className="mt-3 text-sm text-slate-300">Mark this lesson complete to update your dashboard and continue your learning path.</p>
+              <div className="rounded-2xl border border-ink-300/60 bg-white p-6">
+                <h3 className="text-lg font-semibold text-ink-900">Progress checkpoint</h3>
+                <p className="mt-3 text-sm text-ink-700">Mark this lesson complete to update your dashboard and continue your learning path.</p>
                 <div className="mt-5">
                   <LessonCompletionButton courseId={course.id} lessonId={lesson.id} completed={lesson.completed} />
                 </div>

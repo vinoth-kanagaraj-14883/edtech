@@ -32,9 +32,9 @@ export default async function DashboardPage() {
     <div className="space-y-10">
       <section className="surface flex flex-col gap-8 p-8 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <p className="text-sm font-semibold uppercase tracking-[0.3em] text-brand-100">Personalized dashboard</p>
-          <h1 className="mt-3 text-4xl font-semibold tracking-tight text-white">Welcome back, {user.name.split(' ')[0]}</h1>
-          <p className="mt-4 max-w-2xl text-slate-300">Track your enrolled courses, continue active lessons, and stay on top of quiz performance.</p>
+          <p className="text-sm font-semibold uppercase tracking-[0.3em] text-brand-600">Personalized dashboard</p>
+          <h1 className="mt-3 text-4xl font-semibold tracking-tight text-ink-900">Welcome back, {user.name.split(' ')[0]}</h1>
+          <p className="mt-4 max-w-2xl text-ink-700">Track your enrolled courses, continue active lessons, and stay on top of quiz performance.</p>
         </div>
         <div className="grid w-full max-w-3xl gap-4 sm:grid-cols-3">
           {[
@@ -42,9 +42,9 @@ export default async function DashboardPage() {
             { label: 'Completed', value: completedCount },
             { label: 'In progress', value: inProgressCount }
           ].map((stat) => (
-            <div key={stat.label} className="rounded-2xl border border-slate-800 bg-slate-950/70 p-5">
-              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">{stat.label}</p>
-              <p className="mt-3 text-3xl font-semibold text-white">{stat.value}</p>
+            <div key={stat.label} className="rounded-2xl border border-ink-300/60 bg-white p-5">
+              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-ink-500">{stat.label}</p>
+              <p className="mt-3 text-3xl font-semibold text-ink-900">{stat.value}</p>
             </div>
           ))}
         </div>
@@ -66,7 +66,7 @@ export default async function DashboardPage() {
             ))}
           </div>
         ) : (
-          <div className="surface p-8 text-sm text-slate-300">You are not enrolled in any courses yet. Explore the catalog to get started.</div>
+          <div className="surface p-8 text-sm text-ink-700">You are not enrolled in any courses yet. Explore the catalog to get started.</div>
         )}
       </section>
 
@@ -76,19 +76,19 @@ export default async function DashboardPage() {
           <p className="section-subtitle">Latest platform updates and progress checkpoints.</p>
         </div>
 
-        <div className="surface divide-y divide-slate-800 overflow-hidden">
+        <div className="surface divide-y divide-ink-300/60 overflow-hidden">
           {derivedActivity.length > 0 ? (
             derivedActivity.map((item) => (
               <div key={item.id} className="flex flex-col gap-3 p-6 md:flex-row md:items-start md:justify-between">
                 <div>
-                  <p className="text-sm font-semibold text-white">{item.title}</p>
-                  <p className="mt-1 text-sm text-slate-300">{item.message}</p>
+                  <p className="text-sm font-semibold text-ink-900">{item.title}</p>
+                  <p className="mt-1 text-sm text-ink-700">{item.message}</p>
                 </div>
-                {item.link ? <Link href={item.link} className="text-sm font-medium text-brand-100 hover:text-white">Open →</Link> : null}
+                {item.link ? <Link href={item.link} className="text-sm font-medium text-brand-600 hover:text-brand-700">Open →</Link> : null}
               </div>
             ))
           ) : (
-            <div className="p-6 text-sm text-slate-400">No recent activity yet.</div>
+            <div className="p-6 text-sm text-ink-500">No recent activity yet.</div>
           )}
         </div>
       </section>

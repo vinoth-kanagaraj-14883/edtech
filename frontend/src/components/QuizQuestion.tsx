@@ -15,8 +15,8 @@ export default function QuizQuestion({ question, selectedAnswer, index, onChange
   return (
     <div className="surface space-y-5 p-6">
       <div className="space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-[0.3em] text-brand-100">Question {index + 1}</p>
-        <h3 className="text-lg font-semibold text-white">{question.prompt}</h3>
+        <p className="text-xs font-semibold uppercase tracking-[0.3em] text-brand-600">Question {index + 1}</p>
+        <h3 className="text-lg font-semibold text-ink-900">{question.prompt}</h3>
       </div>
 
       {options.length > 0 ? (
@@ -27,7 +27,7 @@ export default function QuizQuestion({ question, selectedAnswer, index, onChange
             return (
               <label
                 key={option}
-                className={`flex cursor-pointer items-center gap-3 rounded-xl border px-4 py-3 text-sm transition ${checked ? 'border-brand-500 bg-brand-500/10 text-white' : 'border-slate-800 bg-slate-950/70 text-slate-300 hover:border-slate-700'}`}
+                className={`flex cursor-pointer items-center gap-3 rounded-xl border px-4 py-3 text-sm transition ${checked ? 'border-brand-500 bg-brand-50 text-ink-900' : 'border-ink-300/60 bg-white text-ink-700 hover:border-brand-400'}`}
               >
                 <input
                   type="radio"
@@ -48,7 +48,7 @@ export default function QuizQuestion({ question, selectedAnswer, index, onChange
           value={selectedAnswer ?? ''}
           onChange={(event) => onChange(question.id, event.target.value)}
           placeholder="Type your answer…"
-          className="w-full rounded-xl border border-slate-800 bg-slate-950/70 px-4 py-3 text-sm text-white placeholder:text-slate-500"
+          className="w-full rounded-md border border-ink-300 bg-white px-4 py-3 text-sm text-ink-900 placeholder:text-ink-500"
         />
       )}
     </div>

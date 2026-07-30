@@ -13,9 +13,9 @@ export default async function QuizzesPage() {
       <div className="space-y-8">
         <section className="surface flex flex-wrap items-start justify-between gap-4 p-8">
           <div>
-            <p className="text-sm font-semibold uppercase tracking-[0.3em] text-brand-100">Assessments</p>
-            <h1 className="mt-3 text-4xl font-semibold tracking-tight text-white">Practice quizzes</h1>
-            <p className="mt-4 max-w-3xl text-slate-300">Validate understanding, reinforce concepts, and review your scores with structured quizzes.</p>
+            <p className="text-sm font-semibold uppercase tracking-[0.3em] text-brand-600">Assessments</p>
+            <h1 className="mt-3 text-4xl font-semibold tracking-tight text-ink-900">Practice quizzes</h1>
+            <p className="mt-4 max-w-3xl text-ink-700">Validate understanding, reinforce concepts, and review your scores with structured quizzes.</p>
           </div>
           {user.role === 'instructor' ? (
             <Link href="/quizzes/create" className="primary-button whitespace-nowrap">
@@ -29,16 +29,16 @@ export default async function QuizzesPage() {
             {quizzes.map((quiz) => (
               <article key={quiz.id} className="surface flex flex-col gap-5 p-6">
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">{quiz.questionCount ?? quiz.questions.length} questions</p>
-                  <h2 className="mt-3 text-xl font-semibold text-white">{quiz.title}</h2>
-                  <p className="mt-3 text-sm text-slate-300">{quiz.description ?? 'Sharpen your knowledge with a focused practice assessment.'}</p>
+                  <p className="text-xs font-semibold uppercase tracking-[0.24em] text-ink-500">{quiz.questionCount ?? quiz.questions.length} questions</p>
+                  <h2 className="mt-3 text-xl font-semibold text-ink-900">{quiz.title}</h2>
+                  <p className="mt-3 text-sm text-ink-700">{quiz.description ?? 'Sharpen your knowledge with a focused practice assessment.'}</p>
                 </div>
                 <Link href={`/quizzes/${quiz.id}`} className="primary-button mt-auto">Start quiz</Link>
               </article>
             ))}
           </div>
         ) : (
-          <div className="surface p-8 text-sm text-slate-300">No quizzes are available right now.</div>
+          <div className="surface p-8 text-sm text-ink-700">No quizzes are available right now.</div>
         )}
       </div>
     );

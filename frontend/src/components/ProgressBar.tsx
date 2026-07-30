@@ -11,13 +11,13 @@ export default function ProgressBar({ value, label, className }: ProgressBarProp
 
   return (
     <div className={clsx('space-y-2', className)}>
-      <div className="flex items-center justify-between text-xs font-medium uppercase tracking-[0.24em] text-slate-400">
+      <div className="flex items-center justify-between text-xs font-semibold text-ink-500">
         <span>{label ?? 'Progress'}</span>
         <span>{Math.round(clamped)}%</span>
       </div>
-      <div className="h-2 overflow-hidden rounded-full bg-slate-800">
+      <div className="h-2 overflow-hidden rounded-full bg-muted ring-1 ring-inset ring-ink-300/60">
         <div
-          className="h-full rounded-full bg-gradient-to-r from-brand-500 to-brand-100 transition-all duration-300"
+          className="h-full rounded-full bg-gradient-to-r from-brand-500 to-forge-500 transition-all duration-300"
           style={{ width: `${clamped}%` }}
         />
       </div>

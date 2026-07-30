@@ -29,9 +29,9 @@ export default function RootLayout({ children }: RootLayoutProps) {
     <html lang="en">
       <body>
         <TelemetryProvider />
-        <div className="flex min-h-screen flex-col">
+        <div className="flex min-h-screen flex-col bg-canvas">
           <Navigation />
-          <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-10 sm:px-6 lg:px-8">{children}</main>
+          <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-8 sm:px-6 lg:px-8">{children}</main>
           <Footer />
         </div>
       </body>

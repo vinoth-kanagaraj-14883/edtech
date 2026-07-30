@@ -1,8 +1,11 @@
+import Image from 'next/image';
 import Link from 'next/link';
 
 import DeleteCourseButton from '@/components/DeleteCourseButton';
 import ProgressBar from '@/components/ProgressBar';
+import StarRating from '@/components/StarRating';
 import UnenrollButton from '@/components/UnenrollButton';
+import { coverGradient, derivedRating, derivedRatingCount, formatPrice, isBestseller } from '@/lib/course-meta';
 import type { Course } from '@/types';
 
 interface CourseCardProps {
@@ -14,47 +17,70 @@ interface CourseCardProps {
 
 export default function CourseCard({ course, currentUserId, currentUserRole, showUnenroll }: CourseCardProps) {
   const isOwner = currentUserRole === 'instructor' && currentUserId && course.instructorId === currentUserId;
+  const gradient = coverGradient(course.id);
+  const rating = derivedRating(course);
+  const ratingCount = derivedRatingCount(course);
+  const bestseller = isBestseller(course);
 
   return (
-    <article className="surface flex h-full flex-col overflow-hidden">
-      <div className="flex h-40 items-center justify-center bg-gradient-to-br from-brand-600/20 via-slate-900 to-slate-950 text-center">
-        <div className="space-y-2 px-6">
-          <span className="inline-flex rounded-full border border-brand-500/40 bg-brand-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.3em] text-brand-100">
-            {course.level.replace('-', ' ')}
-          </span>
-          <h3 className="text-xl font-semibold text-white">{course.title}</h3>
-        </div>
-      </div>
-
-      <div className="flex flex-1 flex-col gap-4 p-6">
-        <div className="space-y-2">
-          <p className="text-sm text-slate-300">{course.shortDescription ?? course.description}</p>
-          <div className="flex flex-wrap gap-2 text-xs text-slate-400">
-            {course.category ? <span>{course.category}</span> : null}
-            {course.instructor ? <span>• {course.instructor}</span> : null}
-            {course.durationHours ? <span>• {course.durationHours}h</span> : null}
+    <article className="group flex h-full flex-col overflow-hidden rounded-lg border border-ink-300/60 bg-white shadow-card transition hover:shadow-card-hover">
+      <Link href={`/courses/${course.id}`} className="relative block aspect-video w-full overflow-hidden">
+        {course.thumbnailUrl ? (
+          <Image
+            src={course.thumbnailUrl}
+            alt={course.title}
+            fill
+            sizes="(max-width: 768px) 100vw, 33vw"
+            className="object-cover transition duration-300 group-hover:scale-105"
+          />
+        ) : (
+          <div className={`flex h-full w-full items-center justify-center bg-gradient-to-br ${gradient} p-4`}>
+            <span className="line-clamp-3 text-center text-lg font-extrabold leading-tight text-white drop-shadow">
+              {course.title}
+            </span>
           </div>
+        )}
+      </Link>
+
+      <div className="flex flex-1 flex-col gap-1.5 p-4">
+        <Link href={`/courses/${course.id}`} className="line-clamp-2 text-base font-bold leading-snug text-ink-900 hover:text-brand-600">
+          {course.title}
+        </Link>
+
+        {course.instructor ? <p className="text-xs text-ink-500">{course.instructor}</p> : null}
+
+        <StarRating value={rating} count={ratingCount} />
+
+        <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-ink-500">
+          <span className="capitalize">{course.level.replace('-', ' ')}</span>
+          {course.durationHours ? <span>• {course.durationHours} total hours</span> : null}
+          <span>• {course.lessons.length} lessons</span>
         </div>
 
-        {typeof course.progress === 'number' && course.progress > 0 ? <ProgressBar value={course.progress} label="Course progress" /> : null}
+        {typeof course.progress === 'number' && course.progress > 0 ? (
+          <div className="pt-1">
+            <ProgressBar value={course.progress} label="Course progress" />
+          </div>
+        ) : null}
 
-        <div className="mt-auto flex items-center justify-between gap-3 pt-2">
-          <span className="text-xs uppercase tracking-[0.24em] text-slate-500">{course.lessons.length} lessons</span>
-          <div className="flex items-center gap-3">
+        <div className="mt-auto flex items-center justify-between gap-2 pt-3">
+          <span className="text-lg font-extrabold text-ink-900">{formatPrice(course.price)}</span>
+          {bestseller ? <span className="badge-bestseller">Bestseller</span> : null}
+        </div>
+
+        {(isOwner || (showUnenroll && course.enrolled)) ? (
+          <div className="mt-2 flex items-center justify-end gap-3 border-t border-ink-300/50 pt-3">
             {isOwner ? (
               <>
-                <Link href={`/courses/${course.id}/edit`} className="text-xs font-medium text-slate-300 hover:text-brand-100">
+                <Link href={`/courses/${course.id}/edit`} className="text-xs font-semibold text-forge-500 hover:text-forge-700">
                   Edit
                 </Link>
                 <DeleteCourseButton courseId={course.id} />
               </>
             ) : null}
             {showUnenroll && course.enrolled ? <UnenrollButton courseId={course.id} /> : null}
-            <Link href={`/courses/${course.id}`} className="primary-button">
-              View course
-            </Link>
           </div>
-        </div>
+        ) : null}
       </div>
     </article>
   );

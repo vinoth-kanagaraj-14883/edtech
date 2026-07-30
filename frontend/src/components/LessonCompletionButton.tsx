@@ -34,7 +34,7 @@ export default function LessonCompletionButton({ courseId, lessonId, completed }
       <button type="button" onClick={handleComplete} className={completed ? 'secondary-button' : 'primary-button'} disabled={loading || completed}>
         {completed ? 'Completed' : loading ? 'Saving…' : 'Mark complete'}
       </button>
-      {error ? <p className="text-sm text-rose-300">{error}</p> : null}
+      {error ? <p className="text-sm text-rose-600">{error}</p> : null}
     </div>
   );
 }

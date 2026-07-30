@@ -1,0 +1,52 @@
+# ---------------------------------------------------------------------------
+# Demo overlay: inserts a Toxiproxy sidecar BETWEEN the api-gateway and the
+# five downstream services so we can inject real-world faults (latency, 5xx,
+# bandwidth throttling, timeouts) at the NETWORK layer -- with zero changes to
+# any service source code or the existing observability stack.
+#
+# Layer it on top of the base + observability compose files:
+#
+#   docker compose \
+#     -f docker-compose.yml \
+#     -f docker-compose.observability.yml \
+#     -f demo/docker-compose.demo.yml \
+#     up -d
+#
+# (A `make demo-up` target is provided for convenience.)
+#
+# How it works
+# ------------
+#   gateway --> toxiproxy:<proxy-port> --> real service   (no toxic  = clean)
+#                        \__ +latency / +error toxic ON __/  (toxic on = fault)
+#
+# The gateway still terminates and PROPAGATES the W3C trace context to the real
+# services, so distributed traces in Jaeger stay fully intact -- the injected
+# fault simply appears as a slow / failed span in the exact place it occurs.
+# ---------------------------------------------------------------------------
+services:
+  toxiproxy:
+    image: ghcr.io/shopify/toxiproxy:2.9.0
+    container_name: edtech-toxiproxy
+    # 8474 = Toxiproxy admin/control HTTP API (used by inject-fault.sh).
+    # 21001-21005 = the per-service proxy listen ports (see toxiproxy-init.sh).
+    ports:
+      - "8474:8474"
+      - "21001:21001"
+      - "21002:21002"
+      - "21003:21003"
+      - "21004:21004"
+      - "21005:21005"
+    command: ["-host", "0.0.0.0"]
+
+  # Repoint the gateway's downstream URLs at the Toxiproxy proxies instead of
+  # the services directly. Everything else about the gateway is unchanged.
+  api-gateway:
+    environment:
+      USER_SERVICE_URL: http://toxiproxy:21001
+      COURSE_SERVICE_URL: http://toxiproxy:21002
+      CONTENT_SERVICE_URL: http://toxiproxy:21003
+      QUIZ_SERVICE_URL: http://toxiproxy:21004
+      NOTIFICATION_SERVICE_URL: http://toxiproxy:21005
+    depends_on:
+      toxiproxy:
+        condition: service_started

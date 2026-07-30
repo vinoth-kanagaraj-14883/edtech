@@ -37,10 +37,10 @@ export default function DeleteCourseButton({ courseId, redirectTo }: DeleteCours
 
   return (
     <div className="flex flex-col items-end gap-1">
-      <button type="button" onClick={handleDelete} disabled={loading} className="text-xs font-medium text-rose-300 hover:text-rose-200">
+      <button type="button" onClick={handleDelete} disabled={loading} className="text-xs font-medium text-rose-600 hover:text-rose-700">
         {loading ? 'Deleting…' : 'Delete'}
       </button>
-      {error ? <p className="text-xs text-rose-300">{error}</p> : null}
+      {error ? <p className="text-xs text-rose-600">{error}</p> : null}
     </div>
   );
 }

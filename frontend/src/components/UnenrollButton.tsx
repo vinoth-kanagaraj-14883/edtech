@@ -38,11 +38,11 @@ export default function UnenrollButton({ courseId, className }: UnenrollButtonPr
         type="button"
         onClick={handleUnenroll}
         disabled={loading}
-        className={className ?? 'text-xs font-medium text-rose-300 hover:text-rose-200'}
+        className={className ?? 'text-xs font-medium text-rose-600 hover:text-rose-700'}
       >
         {loading ? 'Removing…' : 'Unenroll'}
       </button>
-      {error ? <p className="text-xs text-rose-300">{error}</p> : null}
+      {error ? <p className="text-xs text-rose-600">{error}</p> : null}
     </div>
   );
 }

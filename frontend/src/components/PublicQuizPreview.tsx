@@ -17,11 +17,11 @@ export default function PublicQuizPreview({ quiz }: PublicQuizPreviewProps) {
   return (
     <div className="surface flex flex-col gap-5 p-6">
       <div>
-        <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">
+        <p className="text-xs font-semibold uppercase tracking-[0.24em] text-ink-500">
           {quiz.questionCount ?? quiz.questions.length} questions · Free preview
         </p>
-        <h3 className="mt-3 text-xl font-semibold text-white">{quiz.title}</h3>
-        <p className="mt-3 text-sm text-slate-300">{quiz.description ?? 'Try a few sample questions before you sign up.'}</p>
+        <h3 className="mt-3 text-xl font-semibold text-ink-900">{quiz.title}</h3>
+        <p className="mt-3 text-sm text-ink-700">{quiz.description ?? 'Try a few sample questions before you sign up.'}</p>
       </div>
 
       <div className="space-y-4">
@@ -29,9 +29,9 @@ export default function PublicQuizPreview({ quiz }: PublicQuizPreviewProps) {
           const options = question.type === 'true_false' && question.options.length === 0 ? ['True', 'False'] : question.options;
 
           return (
-            <div key={question.id} className="rounded-2xl border border-slate-800 bg-slate-950/70 p-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-brand-100">Question {index + 1}</p>
-              <p className="mt-2 text-sm font-medium text-white">{question.prompt}</p>
+            <div key={question.id} className="rounded-2xl border border-ink-300/60 bg-white p-4">
+              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-brand-600">Question {index + 1}</p>
+              <p className="mt-2 text-sm font-medium text-ink-900">{question.prompt}</p>
 
               {options.length > 0 ? (
                 <div className="mt-3 space-y-2">
@@ -41,7 +41,7 @@ export default function PublicQuizPreview({ quiz }: PublicQuizPreviewProps) {
                     return (
                       <label
                         key={option}
-                        className={`flex cursor-pointer items-center gap-3 rounded-xl border px-3 py-2 text-sm transition ${checked ? 'border-brand-500 bg-brand-500/10 text-white' : 'border-slate-800 bg-slate-900/60 text-slate-300 hover:border-slate-700'}`}
+                        className={`flex cursor-pointer items-center gap-3 rounded-xl border px-3 py-2 text-sm transition ${checked ? 'border-brand-500 bg-brand-50 text-ink-900' : 'border-ink-300/60 bg-white text-ink-700 hover:border-brand-400'}`}
                       >
                         <input
                           type="radio"
@@ -62,7 +62,7 @@ export default function PublicQuizPreview({ quiz }: PublicQuizPreviewProps) {
                   placeholder="Type your answer…"
                   value={answers[question.id] ?? ''}
                   onChange={(event) => setAnswers((current) => ({ ...current, [question.id]: event.target.value }))}
-                  className="mt-3 w-full rounded-xl border border-slate-800 bg-slate-900/60 px-3 py-2 text-sm text-white placeholder:text-slate-500"
+                  className="mt-3 w-full rounded-md border border-ink-300 bg-white px-3 py-2 text-sm text-ink-900 placeholder:text-ink-500"
                 />
               )}
             </div>
@@ -70,7 +70,7 @@ export default function PublicQuizPreview({ quiz }: PublicQuizPreviewProps) {
         })}
       </div>
 
-      <div className="mt-auto space-y-3 rounded-2xl border border-brand-500/30 bg-brand-500/10 p-4 text-sm text-slate-200">
+      <div className="mt-auto space-y-3 rounded-2xl border border-brand-500/30 bg-brand-500/10 p-4 text-sm text-ink-700">
         <p>
           {answeredCount > 0
             ? "Nice work! Create a free account to submit your answers and see your score."

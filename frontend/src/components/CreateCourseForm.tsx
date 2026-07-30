@@ -106,14 +106,14 @@ export default function CreateCourseForm({ instructorId, existingCourse }: Creat
     <form onSubmit={handleSubmit} className="space-y-8">
       <div className="surface space-y-5 p-6">
         <div className="space-y-2">
-          <label htmlFor="title" className="text-sm font-medium text-slate-200">
+          <label htmlFor="title" className="text-sm font-medium text-ink-700">
             Course title
           </label>
           <input id="title" value={title} onChange={(event) => setTitle(event.target.value)} required />
         </div>
 
         <div className="space-y-2">
-          <label htmlFor="description" className="text-sm font-medium text-slate-200">
+          <label htmlFor="description" className="text-sm font-medium text-ink-700">
             Description
           </label>
           <textarea
@@ -122,14 +122,14 @@ export default function CreateCourseForm({ instructorId, existingCourse }: Creat
             onChange={(event) => setDescription(event.target.value)}
             rows={4}
             required
-            className="w-full rounded-xl border border-slate-800 bg-slate-950/70 px-4 py-3 text-sm text-white placeholder:text-slate-500"
+            className="w-full rounded-md border border-ink-300 bg-white px-4 py-3 text-sm text-ink-900 placeholder:text-ink-500"
             placeholder="What will students learn in this course?"
           />
         </div>
 
         <div className="grid gap-4 sm:grid-cols-3">
           <div className="space-y-2">
-            <label htmlFor="level" className="text-sm font-medium text-slate-200">
+            <label htmlFor="level" className="text-sm font-medium text-ink-700">
               Level
             </label>
             <select id="level" value={level} onChange={(event) => setLevel(event.target.value as typeof level)}>
@@ -139,7 +139,7 @@ export default function CreateCourseForm({ instructorId, existingCourse }: Creat
             </select>
           </div>
           <div className="space-y-2">
-            <label htmlFor="durationHours" className="text-sm font-medium text-slate-200">
+            <label htmlFor="durationHours" className="text-sm font-medium text-ink-700">
               Duration (hours)
             </label>
             <input
@@ -151,7 +151,7 @@ export default function CreateCourseForm({ instructorId, existingCourse }: Creat
             />
           </div>
           <div className="space-y-2">
-            <label htmlFor="price" className="text-sm font-medium text-slate-200">
+            <label htmlFor="price" className="text-sm font-medium text-ink-700">
               Price (USD)
             </label>
             <input id="price" type="number" min={0} step="0.01" value={price} onChange={(event) => setPrice(Number(event.target.value))} />
@@ -160,7 +160,7 @@ export default function CreateCourseForm({ instructorId, existingCourse }: Creat
 
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-2">
-            <label htmlFor="thumbnailUrl" className="text-sm font-medium text-slate-200">
+            <label htmlFor="thumbnailUrl" className="text-sm font-medium text-ink-700">
               Thumbnail URL
             </label>
             <input
@@ -171,7 +171,7 @@ export default function CreateCourseForm({ instructorId, existingCourse }: Creat
             />
           </div>
           <div className="space-y-2">
-            <label htmlFor="tags" className="text-sm font-medium text-slate-200">
+            <label htmlFor="tags" className="text-sm font-medium text-ink-700">
               Tags (comma separated)
             </label>
             <input id="tags" value={tags} onChange={(event) => setTags(event.target.value)} placeholder="cloud, azure, beginner" />
@@ -191,27 +191,27 @@ export default function CreateCourseForm({ instructorId, existingCourse }: Creat
           {lessons.map((lesson, index) => (
             <div key={index} className="surface space-y-4 p-6">
               <div className="flex items-center justify-between">
-                <p className="text-xs font-semibold uppercase tracking-[0.3em] text-brand-100">Lesson {index + 1}</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.3em] text-brand-600">Lesson {index + 1}</p>
                 {lessons.length > 1 ? (
-                  <button type="button" onClick={() => removeLesson(index)} className="text-xs font-medium text-rose-300 hover:text-rose-200">
+                  <button type="button" onClick={() => removeLesson(index)} className="text-xs font-medium text-rose-600 hover:text-rose-700">
                     Remove
                   </button>
                 ) : null}
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-200">Lesson title</label>
+                <label className="text-sm font-medium text-ink-700">Lesson title</label>
                 <input value={lesson.title} onChange={(event) => updateLesson(index, { title: event.target.value })} />
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-200">Short description</label>
+                <label className="text-sm font-medium text-ink-700">Short description</label>
                 <input value={lesson.description} onChange={(event) => updateLesson(index, { description: event.target.value })} />
               </div>
 
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-slate-200">Content type</label>
+                  <label className="text-sm font-medium text-ink-700">Content type</label>
                   <select
                     value={lesson.contentType}
                     onChange={(event) => updateLesson(index, { contentType: event.target.value as LessonDraft['contentType'] })}
@@ -221,7 +221,7 @@ export default function CreateCourseForm({ instructorId, existingCourse }: Creat
                   </select>
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-slate-200">Duration (minutes)</label>
+                  <label className="text-sm font-medium text-ink-700">Duration (minutes)</label>
                   <input
                     type="number"
                     min={1}
@@ -233,17 +233,17 @@ export default function CreateCourseForm({ instructorId, existingCourse }: Creat
 
               {lesson.contentType === 'video' ? (
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-slate-200">Video URL</label>
+                  <label className="text-sm font-medium text-ink-700">Video URL</label>
                   <input value={lesson.videoUrl} onChange={(event) => updateLesson(index, { videoUrl: event.target.value })} placeholder="https://…" />
                 </div>
               ) : (
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-slate-200">Article content</label>
+                  <label className="text-sm font-medium text-ink-700">Article content</label>
                   <textarea
                     rows={4}
                     value={lesson.articleBody}
                     onChange={(event) => updateLesson(index, { articleBody: event.target.value })}
-                    className="w-full rounded-xl border border-slate-800 bg-slate-950/70 px-4 py-3 text-sm text-white placeholder:text-slate-500"
+                    className="w-full rounded-md border border-ink-300 bg-white px-4 py-3 text-sm text-ink-900 placeholder:text-ink-500"
                     placeholder="Write the lesson content here…"
                   />
                 </div>
@@ -253,8 +253,8 @@ export default function CreateCourseForm({ instructorId, existingCourse }: Creat
         </div>
       ) : null}
 
-      {error ? <p className="text-sm text-rose-300">{error}</p> : null}
-      {success ? <p className="text-sm text-emerald-300">{success}</p> : null}
+      {error ? <p className="text-sm text-rose-600">{error}</p> : null}
+      {success ? <p className="text-sm text-emerald-600">{success}</p> : null}
 
       <button type="submit" className="primary-button" disabled={submitting}>
         {submitting ? 'Saving…' : isEditing ? 'Save changes' : 'Create course'}

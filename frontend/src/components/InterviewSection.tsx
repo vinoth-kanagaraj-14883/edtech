@@ -9,7 +9,7 @@ export default function InterviewSection({ interviews }: InterviewSectionProps) 
     <section className="space-y-6">
       <div>
         <p className="text-sm font-semibold uppercase tracking-[0.3em] text-forge-400">Industry voices</p>
-        <h2 className="mt-2 text-3xl font-semibold text-white">Interviews with practitioners</h2>
+        <h2 className="mt-2 text-3xl font-semibold text-ink-900">Interviews with practitioners</h2>
       </div>
 
       <div className="grid gap-6 md:grid-cols-2">
@@ -22,10 +22,10 @@ export default function InterviewSection({ interviews }: InterviewSectionProps) 
                 .join('')}
             </div>
             <div className="space-y-2">
-              <p className="text-base font-semibold text-white">{interview.name}</p>
-              <p className="text-xs uppercase tracking-[0.2em] text-slate-500">{interview.title}</p>
-              <p className="text-sm font-medium text-forge-100">{interview.topic}</p>
-              <p className="text-sm text-slate-300">{interview.summary}</p>
+              <p className="text-base font-semibold text-ink-900">{interview.name}</p>
+              <p className="text-xs uppercase tracking-[0.2em] text-ink-500">{interview.title}</p>
+              <p className="text-sm font-medium text-forge-600">{interview.topic}</p>
+              <p className="text-sm text-ink-700">{interview.summary}</p>
             </div>
           </article>
         ))}
