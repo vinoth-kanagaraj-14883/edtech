@@ -171,6 +171,15 @@ helm upgrade --install edtech ./helm/edtech -n edtech -f helm/edtech/values-prod
 - Jaeger on `16686`
 - Alertmanager on `9093`
 
+### Grafana dashboards as code
+
+![Grafana GitOps architecture](monitoring/grafana/grafana-gitops-architecture.svg)
+
+Grafana dashboard JSON and its PromQL queries are versioned in
+`monitoring/grafana/dashboards/`. On Kubernetes, Kustomize packages those files
+in the `grafana-dashboards` ConfigMap and Grafana's file provider loads them
+into the live instance. Merges to `main` deploy through the Kubernetes workflow.
+
 Typical workflow:
 
 ```bash
