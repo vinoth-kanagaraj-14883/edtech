@@ -4,6 +4,7 @@ COMPOSE_OBS := docker compose -f docker-compose.yml -f docker-compose.observabil
 COMPOSE_DEMO := docker compose -f docker-compose.yml -f docker-compose.observability.yml -f demo/docker-compose.demo.yml
 
 .PHONY: up down up-obs build rebuild rebuild-one smoke test health k8s-deploy k8s-delete load-test setup-db logs status \
+        loadgen-logs loadgen-stop loadgen-start \
         demo-up demo-init demo-down demo-reset demo-healthy demo-slow-db demo-error-storm demo-cascade demo-timeout demo-noisy-neighbor demo-retry-storm demo-partial demo-status
 
 # Docker Compose
@@ -52,9 +53,21 @@ k8s-deploy:
 k8s-delete:
 	kubectl delete -k k8s/base/ --ignore-not-found
 
-# Load testing
+# Load testing (one-off, fixed duration)
 load-test:
 	./scripts/generate-load.sh
+
+# Always-on load generator (part of the observability stack). It starts
+# automatically with `make up-obs` / `make rebuild`. These targets just help
+# you inspect or toggle it without touching the rest of the stack.
+loadgen-logs:
+	$(COMPOSE_OBS) logs -f loadgen
+
+loadgen-stop:
+	$(COMPOSE_OBS) stop loadgen
+
+loadgen-start:
+	$(COMPOSE_OBS) up -d loadgen
 
 # Setup databases
 setup-db:

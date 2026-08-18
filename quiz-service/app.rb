@@ -1,7 +1,9 @@
 require 'bundler/setup'
 require 'json'
 require 'logger'
+require 'net/http'
 require 'time'
+require 'uri'
 require 'sinatra/base'
 require 'sinatra/json'
 require 'sinatra/activerecord'
@@ -20,6 +22,11 @@ require_relative 'models/submission'
 module QuizService
   SERVICE_NAME = 'quiz-service'.freeze
   OTEL_EXPORTER_ENDPOINT = ENV['OTEL_EXPORTER_OTLP_ENDPOINT']&.strip
+  # Downstream notification-service. quiz-service POSTs a "quiz.completed" event
+  # here after a submission is scored (see notify_quiz_completed). The call is
+  # instrumented with an explicit client span + W3C trace-context injection so
+  # the quiz-service -> notification-service edge shows up in Jaeger's DAG.
+  NOTIFICATION_SERVICE_URL = (ENV['NOTIFICATION_SERVICE_URL']&.strip || 'http://notification-service:8005').chomp('/')
 
   APP_LOGGER = Logger.new($stdout)
   APP_LOGGER.formatter = proc do |_severity, _datetime, _progname, msg|
@@ -248,6 +255,11 @@ module QuizService
         completed_at: Time.now.utc
       )
 
+      # Emit a "quiz.completed" event to the notification-service. Best-effort:
+      # a notification failure must never fail the (already persisted) quiz
+      # submission, so errors are swallowed inside the helper.
+      notify_quiz_completed(quiz, submission, score_result)
+
       status 201
       json(
         submission: serialize_submission(submission),
@@ -471,6 +483,58 @@ module QuizService
         created_at: submission.created_at&.utc&.iso8601,
         updated_at: submission.updated_at&.utc&.iso8601
       }
+    end
+
+    # POST a "quiz.completed" event to the notification-service.
+    #
+    # Ruby's stdlib Net::HTTP is NOT auto-instrumented by the OTel gems this
+    # service loads (only Sinatra + ActiveRecord are), so — exactly like the
+    # search-service does for its undici `fetch` — we must MANUALLY start a
+    # client span and inject the active trace context (W3C traceparent) into
+    # the outbound headers. Without this the notification-service would begin a
+    # brand-new root trace and the quiz-service -> notification-service edge
+    # would be MISSING from Jaeger's System Architecture (DAG) graph.
+    #
+    # The whole thing is best-effort: any failure is logged and swallowed so a
+    # notification hiccup can never fail an already-scored quiz submission.
+    def notify_quiz_completed(quiz, submission, score_result)
+      tracer = OpenTelemetry.tracer_provider.tracer(SERVICE_NAME)
+      uri = URI.parse("#{NOTIFICATION_SERVICE_URL}/notifications")
+
+      tracer.in_span('POST /notifications', kind: :client) do |span|
+        span.set_attribute('http.method', 'POST')
+        span.set_attribute('http.url', uri.to_s)
+        span.set_attribute('peer.service', 'notification-service')
+
+        headers = { 'Content-Type' => 'application/json' }
+        # Inject the active trace context into the outbound request headers.
+        OpenTelemetry.propagation.inject(headers)
+
+        body = {
+          type: 'quiz.completed',
+          user_id: submission.user_id,
+          quiz_id: quiz.id,
+          course_id: quiz.course_id,
+          score: score_result[:score],
+          passed: score_result[:passed]
+        }
+
+        http = Net::HTTP.new(uri.host, uri.port)
+        http.open_timeout = 2
+        http.read_timeout = 2
+
+        request = Net::HTTP::Post.new(uri.request_uri, headers)
+        request.body = JSON.generate(body)
+
+        response = http.request(request)
+        span.set_attribute('http.status_code', response.code.to_i)
+        unless response.is_a?(Net::HTTPSuccess)
+          span.status = OpenTelemetry::Trace::Status.error("notification-service responded #{response.code}")
+        end
+      end
+    rescue StandardError => e
+      # Best-effort: never fail the quiz submission because of a notification.
+      log_event(level: 'warn', message: 'failed to notify notification-service', error: e.message)
     end
 
     def log_event(level:, message:, **fields)

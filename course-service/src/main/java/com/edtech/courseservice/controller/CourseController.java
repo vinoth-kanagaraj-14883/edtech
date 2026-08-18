@@ -46,6 +46,7 @@ public class CourseController {
 
     @GetMapping("/courses")
     public Map<String, Object> getCourses(
+            @RequestParam(required = false) String search,
             @RequestParam(required = false) Course.CourseLevel level,
             @RequestParam(required = false) Course.CourseStatus status,
             @RequestParam(required = false) Boolean enrolled,
@@ -57,7 +58,29 @@ public class CourseController {
             List<Course> courses = courseService.getUserEnrolledCourses(userId);
             return Map.of("courses", courses, "totalElements", courses.size());
         }
-        Page<Course> page = courseService.listCourses(level, status, pageable);
+        // A ?search= term runs a free-text search (title/description/tags),
+        // otherwise fall back to the level/status listing.
+        Page<Course> page = (search != null && !search.isBlank())
+                ? courseService.searchCourses(search, level, pageable)
+                : courseService.listCourses(level, status, pageable);
+        Map<String, Object> body = new HashMap<>();
+        body.put("courses", page.getContent());
+        body.put("totalElements", page.getTotalElements());
+        body.put("totalPages", page.getTotalPages());
+        body.put("page", page.getNumber());
+        body.put("size", page.getSize());
+        return body;
+    }
+
+    // Dedicated search endpoint consumed by the standalone search-service.
+    // Returns the same shape as GET /courses so the search-service can cache
+    // and re-serve the payload verbatim.
+    @GetMapping("/courses/search")
+    public Map<String, Object> searchCourses(
+            @RequestParam(required = false, name = "q") String query,
+            @RequestParam(required = false) Course.CourseLevel level,
+            @PageableDefault(size = 20, sort = "createdAt") Pageable pageable) {
+        Page<Course> page = courseService.searchCourses(query, level, pageable);
         Map<String, Object> body = new HashMap<>();
         body.put("courses", page.getContent());
         body.put("totalElements", page.getTotalElements());

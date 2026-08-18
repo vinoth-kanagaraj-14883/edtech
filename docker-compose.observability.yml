@@ -29,6 +29,12 @@ services:
     environment:
       OTEL_EXPORTER_OTLP_ENDPOINT: otel-collector:4317
 
+  search-service:
+    environment:
+      # Node OTLP HTTP exporter -> collector HTTP port 4318
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+      OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
+
   frontend:
     environment:
       # Consumed SERVER-SIDE by the Next.js proxy route
@@ -116,3 +122,27 @@ services:
       - ./observability/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
     ports:
       - "${ALERTMANAGER_PORT:-9093}:9093"
+
+  # Always-on load generator: continuously drives the realistic learner journey
+  # (demo/load-continuous.js) through the api-gateway so the Jaeger service map,
+  # Prometheus RED metrics, and Grafana dashboards stay populated with fresh
+  # distributed traces without any manual `make load-test` runs.
+  #
+  # It targets the gateway via the Docker-internal address (api-gateway:8080),
+  # so when the demo overlay repoints the gateway at Toxiproxy the injected
+  # faults show up in this continuous traffic automatically.
+  loadgen:
+    image: grafana/k6:0.52.0
+    container_name: edtech-loadgen
+    # k6 exits when the run window ends; `unless-stopped` loops it forever.
+    restart: unless-stopped
+    environment:
+      API_URL: ${LOADGEN_API_URL:-http://api-gateway:8080}
+      VUS: ${LOADGEN_VUS:-10}
+      DURATION: ${LOADGEN_DURATION:-24h}
+    volumes:
+      - ./demo/load-continuous.js:/scripts/load-continuous.js:ro
+    command: ["run", "/scripts/load-continuous.js"]
+    depends_on:
+      api-gateway:
+        condition: service_started

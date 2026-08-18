@@ -40,8 +40,8 @@ export default function Navigation() {
   return (
     <header className="sticky top-0 z-50 border-b border-ink-300/70 bg-white shadow-nav">
       <nav className="mx-auto flex max-w-7xl items-center gap-4 px-4 py-3 sm:px-6 lg:px-8">
-        <Link href="/" className="flex shrink-0 items-center gap-2 text-xl font-extrabold text-ink-900">
-          <Image src="/logo.png" alt="EduForge" width={48} height={48} className="h-12 w-12 object-contain" priority />
+        <Link href="/" className="flex shrink-0 items-center gap-2.5 text-2xl font-extrabold text-ink-900">
+          <Image src="/logo.png" alt="EduForge" width={72} height={72} className="h-16 w-16 object-contain" priority />
           <span>
             Edu<span className="text-brand-500">Forge</span>
           </span>

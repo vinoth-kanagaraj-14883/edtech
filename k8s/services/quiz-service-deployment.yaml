@@ -64,6 +64,8 @@ spec:
               value: otlp
             - name: OTEL_RESOURCE_ATTRIBUTES
               value: service.name=quiz-service,service.version=v1,deployment.environment=production
+            - name: NOTIFICATION_SERVICE_URL
+              value: http://notification-service.edtech.svc.cluster.local:8005
           resources:
             requests:
               cpu: 100m

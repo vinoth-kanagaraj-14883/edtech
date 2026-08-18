@@ -96,10 +96,10 @@ export default async function HomePage() {
       <section className="overflow-hidden rounded-2xl border border-ink-300/60 bg-hero-fade">
         <div className="grid gap-8 p-8 sm:p-12 lg:grid-cols-2 lg:items-center">
           <div className="space-y-6">
-            <div className="flex items-center gap-3">
-              <Image src="/logo.png" alt="EduForge" width={72} height={72} className="h-16 w-16 object-contain sm:h-20 sm:w-20" priority />
+            <div className="flex items-center gap-4">
+              <Image src="/logo.png" alt="EduForge" width={112} height={112} className="h-24 w-24 object-contain sm:h-28 sm:w-28" priority />
               <div>
-                <p className="text-2xl font-extrabold text-ink-900">
+                <p className="text-3xl font-extrabold text-ink-900">
                   Edu<span className="text-brand-500">Forge</span>
                 </p>
                 <p className="text-sm font-bold uppercase tracking-[0.2em] text-brand-600">Learn. Build. Evolve.</p>

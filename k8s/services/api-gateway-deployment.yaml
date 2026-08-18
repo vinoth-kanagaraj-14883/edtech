@@ -51,6 +51,8 @@ spec:
               value: http://quiz-service.edtech.svc.cluster.local:8004
             - name: NOTIFICATION_SERVICE_URL
               value: http://notification-service.edtech.svc.cluster.local:8005
+            - name: SEARCH_SERVICE_URL
+              value: http://search-service.edtech.svc.cluster.local:8006
             - name: OTEL_SERVICE_NAME
               value: api-gateway
             - name: OTEL_TRACES_EXPORTER

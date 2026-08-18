@@ -37,8 +37,8 @@ export default function Footer() {
       <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
         <div className="grid gap-10 md:grid-cols-4">
           <div className="space-y-3">
-            <Link href="/" className="flex items-center gap-2 text-lg font-extrabold text-ink-900">
-              <Image src="/logo.png" alt="EduForge" width={40} height={40} className="h-10 w-10 object-contain" />
+            <Link href="/" className="flex items-center gap-2.5 text-xl font-extrabold text-ink-900">
+              <Image src="/logo.png" alt="EduForge" width={56} height={56} className="h-14 w-14 object-contain" />
               <span>
                 Edu<span className="text-brand-500">Forge</span>
               </span>

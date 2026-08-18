@@ -393,13 +393,25 @@ export const getCourses = async (query: CourseQuery = {}, context: ApiContext = 
   // course-service (Java) binds `level` to a Java enum (BEGINNER/INTERMEDIATE/
   // ADVANCED); the frontend's filter UI uses lowercase values.
   const backendLevel = query.level && query.level !== 'all' ? query.level.toUpperCase() : undefined;
-  const path = withQuery('/api/courses', {
-    search: query.search,
-    level: backendLevel
-  });
+  const hasSearch = Boolean(query.search && query.search.trim());
+
+  // When the user is actually searching, go through the dedicated
+  // search-service (fast, hot-course-cached) via /api/search. It returns the
+  // same {courses,...} shape as course-service. Fall back to /api/courses and
+  // /courses if the search-service is unavailable, so the catalog still works.
+  const searchPaths = hasSearch
+    ? [
+        withQuery('/api/search', { q: query.search, level: backendLevel }),
+        withQuery('/api/courses', { search: query.search, level: backendLevel }),
+        withQuery('/courses', { search: query.search, level: backendLevel })
+      ]
+    : [
+        withQuery('/api/courses', { level: backendLevel }),
+        withQuery('/courses', { level: backendLevel })
+      ];
 
   return tryPaths(
-    [path, withQuery('/courses', { search: query.search, level: backendLevel })],
+    searchPaths,
     (payload) =>
       getCollection(payload, ['courses', 'items']).map((course) => normalizeCourse(course as Record<string, unknown>)),
     { token: context.token }

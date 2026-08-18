@@ -1,0 +1,51 @@
+{{- if .Values.searchService.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: search-service
+  labels:
+    {{- include "edtech.serviceLabels" (dict "context" . "name" "search-service") | nindent 4 }}
+spec:
+  replicas: {{ .Values.searchService.replicas }}
+  selector:
+    matchLabels:
+      {{- include "edtech.selectorLabels" (dict "Release" .Release "name" "search-service") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "edtech.selectorLabels" (dict "Release" .Release "name" "search-service") | nindent 8 }}
+    spec:
+      containers:
+        - name: search-service
+          image: "{{ .Values.searchService.image.repository }}:{{ .Values.searchService.image.tag }}"
+          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          ports:
+            - containerPort: {{ .Values.searchService.containerPort }}
+          env:
+            {{- include "edtech.renderEnv" .Values.searchService.env | nindent 20 }}
+          resources:
+            {{- toYaml .Values.searchService.resources | nindent 20 }}
+          livenessProbe:
+            httpGet:
+              path: {{ .Values.searchService.probes.liveness.path }}
+              port: {{ .Values.searchService.containerPort }}
+          readinessProbe:
+            httpGet:
+              path: {{ .Values.searchService.probes.readiness.path }}
+              port: {{ .Values.searchService.containerPort }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: search-service
+  labels:
+    {{- include "edtech.serviceLabels" (dict "context" . "name" "search-service") | nindent 4 }}
+spec:
+  type: {{ .Values.searchService.service.type }}
+  selector:
+    {{- include "edtech.selectorLabels" (dict "Release" .Release "name" "search-service") | nindent 4 }}
+  ports:
+    - name: http
+      port: {{ .Values.searchService.service.port }}
+      targetPort: {{ .Values.searchService.containerPort }}
+{{- end }}

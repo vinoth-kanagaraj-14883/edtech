@@ -288,6 +288,13 @@ func (s *service) registerRoutes() {
 		return nil
 	})
 
+	// Synchronous ingest endpoint. Unlike the Redis pub/sub consumer (which
+	// starts its own root span and is therefore a disconnected trace), this
+	// HTTP route runs inside tracingMiddleware, which extracts the caller's
+	// W3C traceparent. That makes the server span a child of the caller's
+	// client span (e.g. quiz-service), so the caller -> notification-service
+	// edge appears in Jaeger's System Architecture (DAG) graph.
+	s.app.Post("/notifications", s.createNotification)
 	s.app.Get("/notifications", s.getNotifications)
 	s.app.Get("/notifications/:userId", s.getNotifications)
 	s.app.Put("/notifications/:id/read", s.markNotificationRead)
@@ -296,8 +303,22 @@ func (s *service) registerRoutes() {
 
 func (s *service) tracingMiddleware() fiber.Handler {
 	return func(c *fiber.Ctx) error {
+		// Extract any incoming W3C trace context (traceparent/tracestate) from
+		// the request headers so this server span becomes a child of the
+		// caller's span (e.g. the api-gateway). Without extraction the span
+		// would start a new root trace and notification-service would appear
+		// as a disconnected service in Jaeger's System Architecture graph.
+		carrier := propagation.MapCarrier{}
+		c.Request().Header.VisitAll(func(key, value []byte) {
+			// The W3C TraceContext propagator looks up lowercase header names
+			// (traceparent/tracestate); fasthttp returns canonical-cased keys,
+			// so normalize to lowercase for a reliable match.
+			carrier.Set(strings.ToLower(string(key)), string(value))
+		})
+		parentCtx := otel.GetTextMapPropagator().Extract(c.UserContext(), carrier)
+
 		ctx, span := s.tracer.Start(
-			c.UserContext(),
+			parentCtx,
 			fmt.Sprintf("%s %s", c.Method(), c.Path()),
 			trace.WithSpanKind(trace.SpanKindServer),
 		)
@@ -555,6 +576,62 @@ func (s *service) getNotifications(c *fiber.Ctx) error {
 			"total_pages": totalPages,
 		},
 	})
+}
+
+// createNotification ingests an event over HTTP and persists a notification.
+// It accepts the same event shape the Redis pub/sub consumer handles (a JSON
+// object with at least user_id, plus optional type/title/message/course_id/
+// quiz_id/score), so callers such as quiz-service can emit "quiz.completed"
+// events synchronously and have the call appear as a connected downstream
+// edge in the trace graph.
+func (s *service) createNotification(c *fiber.Ctx) error {
+	payload := map[string]interface{}{}
+	if len(c.Body()) > 0 {
+		if err := json.Unmarshal(c.Body(), &payload); err != nil {
+			return fiber.NewError(fiber.StatusBadRequest, "invalid JSON body")
+		}
+	}
+
+	userID := extractString(payload, "user_id", "userId")
+	if userID == "" {
+		// Fall back to the trusted identity header injected by the gateway.
+		userID = c.Get("X-User-Id")
+	}
+	if userID == "" {
+		return fiber.NewError(fiber.StatusUnprocessableEntity, "user_id is required")
+	}
+
+	// The event "type" doubles as the pub/sub channel name so we can reuse the
+	// same title/message defaulting logic as the async path.
+	eventType := extractString(payload, "type", "event")
+	if eventType == "" {
+		eventType = "notification"
+	}
+
+	item := notificationFromEvent(eventType, userID, payload)
+	if err := s.storeNotification(c.UserContext(), item); err != nil {
+		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+	}
+
+	s.metrics.notificationsSent.Inc()
+
+	span := trace.SpanFromContext(c.UserContext())
+	span.SetAttributes(
+		attribute.String("notification.id", item.ID),
+		attribute.String("notification.type", item.Type),
+		attribute.String("user.id", item.UserID),
+	)
+	s.logger.Info("notification created via http",
+		zap.String("timestamp", time.Now().UTC().Format(time.RFC3339Nano)),
+		zap.String("service", serviceName),
+		zap.String("trace_id", span.SpanContext().TraceID().String()),
+		zap.String("span_id", span.SpanContext().SpanID().String()),
+		zap.String("notification_id", item.ID),
+		zap.String("user_id", item.UserID),
+		zap.String("type", item.Type),
+	)
+
+	return c.Status(fiber.StatusCreated).JSON(fiber.Map{"notification": item})
 }
 
 func (s *service) fetchNotifications(ctx context.Context, ids []string) ([]notification, error) {

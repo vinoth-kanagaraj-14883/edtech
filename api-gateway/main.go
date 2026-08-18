@@ -28,9 +28,11 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/redis/go-redis/v9"
 	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
+	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/trace"
@@ -265,6 +267,7 @@ func loadConfig() Config {
 			"content":       getEnv("CONTENT_SERVICE_URL", "http://content-service:8003"),
 			"quizzes":       getEnv("QUIZ_SERVICE_URL", "http://quiz-service:8004"),
 			"notifications": getEnv("NOTIFICATION_SERVICE_URL", "http://notification-service:8005"),
+			"search":        getEnv("SEARCH_SERVICE_URL", "http://search-service:8006"),
 		},
 	}
 }
@@ -311,6 +314,16 @@ func initTracerProvider(ctx context.Context, config Config) (*sdktrace.TracerPro
 	)
 
 	otel.SetTracerProvider(tp)
+	// Register the W3C trace-context + baggage propagator globally so that
+	// (a) otelgin extracts the incoming traceparent on inbound requests and
+	// (b) otelhttp (below, on the reverse-proxy transport) injects it into
+	// outbound requests to upstream services. Without this, the global
+	// propagator is a no-op and upstream services start disconnected root
+	// traces — leaving them absent from Jaeger's System Architecture graph.
+	otel.SetTextMapPropagator(propagation.NewCompositeTextMapPropagator(
+		propagation.TraceContext{},
+		propagation.Baggage{},
+	))
 	return tp, nil
 }
 
@@ -424,6 +437,12 @@ func servicePrefixes(service string) []routePrefix {
 			{gatewayPrefix: "/api/notifications", upstreamBase: "/notifications"},
 			{gatewayPrefix: "/api/v1/notifications", upstreamBase: "/notifications"},
 		}
+	case "search":
+		return []routePrefix{
+			{gatewayPrefix: "/search", upstreamBase: "/search"},
+			{gatewayPrefix: "/api/search", upstreamBase: "/search"},
+			{gatewayPrefix: "/api/v1/search", upstreamBase: "/search"},
+		}
 	default:
 		return []routePrefix{
 			{gatewayPrefix: "/" + service, upstreamBase: "/" + service},
@@ -435,7 +454,7 @@ func servicePrefixes(service string) []routePrefix {
 
 func newReverseProxy(service string, target *url.URL, breaker *CircuitBreaker, logger *zap.Logger, config Config) *httputil.ReverseProxy {
 	transport := &ResilientTransport{
-		base: &http.Transport{
+		base: otelhttp.NewTransport(&http.Transport{
 			// Do NOT use HTTP_PROXY/HTTPS_PROXY for internal service-to-service
 			// calls. Upstreams are reached via internal Docker/K8s hostnames
 			// (e.g. http://user-service:8001) which a corporate/egress proxy
@@ -447,7 +466,7 @@ func newReverseProxy(service string, target *url.URL, breaker *CircuitBreaker, l
 			TLSHandshakeTimeout:   5 * time.Second,
 			ExpectContinueTimeout: 1 * time.Second,
 			ResponseHeaderTimeout: config.ProxyTimeout,
-		},
+		}),
 		breaker:     breaker,
 		logger:      logger,
 		service:     service,
@@ -1021,7 +1040,7 @@ func shouldSkipSecurity(path string) bool {
 	if path == "/health" || path == "/ready" || path == "/metrics" {
 		return true
 	}
-	return isPublicAuthPath(path) || isPublicQuizPreviewPath(path)
+	return isPublicAuthPath(path) || isPublicQuizPreviewPath(path) || isPublicSearchPath(path)
 }
 
 // isPublicAuthPath reports whether the request targets an authentication
@@ -1053,6 +1072,21 @@ func isPublicQuizPreviewPath(path string) bool {
 	default:
 		return false
 	}
+}
+
+// isPublicSearchPath reports whether the request targets the course search
+// endpoint served by the standalone search-service. Course search only
+// exposes published catalog metadata (title, description, tags, price), so
+// it is safe to serve to anonymous visitors browsing the marketing site,
+// mirroring the public quiz preview.
+func isPublicSearchPath(path string) bool {
+	trimmed := strings.TrimRight(path, "/")
+	if trimmed == "/search" || trimmed == "/api/search" || trimmed == "/api/v1/search" {
+		return true
+	}
+	return strings.HasPrefix(trimmed, "/search/") ||
+		strings.HasPrefix(trimmed, "/api/search/") ||
+		strings.HasPrefix(trimmed, "/api/v1/search/")
 }
 
 func getEnv(key, fallback string) string {

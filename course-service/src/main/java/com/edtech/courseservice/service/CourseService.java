@@ -42,6 +42,18 @@ public class CourseService {
         return courseRepository.findAll(pageable);
     }
 
+    // Free-text search across title/description/tags, optionally filtered by
+    // level. A blank query falls back to the normal (paged) listing so callers
+    // can share one endpoint. This is the authoritative search backing the
+    // separate search-service's hot-course cache.
+    public Page<Course> searchCourses(String query, Course.CourseLevel level, Pageable pageable) {
+        String trimmed = query == null ? "" : query.trim();
+        if (trimmed.isEmpty()) {
+            return listCourses(level, null, pageable);
+        }
+        return courseRepository.search(trimmed, level, pageable);
+    }
+
     public Course getCourse(UUID id) {
         return courseRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Course not found"));

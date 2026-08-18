@@ -16,9 +16,13 @@ from opentelemetry import trace
 from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
+from opentelemetry.propagate import set_global_textmap
+from opentelemetry.propagators.composite import CompositePropagator
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
+from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
+from opentelemetry.baggage.propagation import W3CBaggagePropagator
 from passlib.context import CryptContext
 from prometheus_client import CONTENT_TYPE_LATEST, Counter, Histogram, generate_latest
 from pydantic import field_validator
@@ -184,6 +188,14 @@ def configure_telemetry(app: FastAPI) -> TracerProvider:
     span_processor = BatchSpanProcessor(OTLPSpanExporter(endpoint=settings.otlp_endpoint, insecure=True))
     tracer_provider.add_span_processor(span_processor)
     trace.set_tracer_provider(tracer_provider)
+
+    # Explicitly register the W3C trace-context + baggage propagator so the
+    # incoming traceparent from the api-gateway is extracted and this service's
+    # spans join the same distributed trace (rather than starting a new root).
+    # This also ensures any future outbound calls inject the same headers.
+    set_global_textmap(
+        CompositePropagator([TraceContextTextMapPropagator(), W3CBaggagePropagator()])
+    )
 
     fastapi_instrumentor.instrument_app(app, tracer_provider=tracer_provider, excluded_urls='/health,/ready,/metrics')
     sqlalchemy_instrumentor.instrument(engine=get_engine().sync_engine, tracer_provider=tracer_provider)

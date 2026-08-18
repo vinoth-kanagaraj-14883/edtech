@@ -50,6 +50,7 @@ apiGateway:
     CONTENT_SERVICE_URL: http://content-service:8003
     QUIZ_SERVICE_URL: http://quiz-service:8004
     NOTIFICATION_SERVICE_URL: http://notification-service:8005
+    SEARCH_SERVICE_URL: http://search-service:8006
     OTEL_SERVICE_NAME: edtech-api-gateway
     OTEL_RESOURCE_ATTRIBUTES: deployment.environment=development
   probes:
@@ -186,6 +187,7 @@ quizService:
     RACK_ENV: production
     REDIS_URL: redis://redis.edtech.svc.cluster.local:6379
     OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector.monitoring.svc.cluster.local:4317
+    NOTIFICATION_SERVICE_URL: http://notification-service.edtech.svc.cluster.local:8005
   probes:
     liveness:
       path: /health
@@ -224,6 +226,41 @@ notificationService:
       path: /health
   hpa:
     enabled: true
+    minReplicas: 2
+    maxReplicas: 4
+    targetCPUUtilizationPercentage: 70
+
+searchService:
+  enabled: true
+  replicas: 2
+  image:
+    repository: ghcr.io/vinoth-kanagaraj-14883/edtech-search-service
+    tag: latest
+  containerPort: 8006
+  service:
+    type: ClusterIP
+    port: 8006
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  env:
+    COURSE_SERVICE_URL: http://course-service.edtech.svc.cluster.local:8002
+    REDIS_URL: redis://redis.edtech.svc.cluster.local:6379
+    HOT_COURSE_LIMIT: "500"
+    HOT_REFRESH_MS: "60000"
+    OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector.monitoring.svc.cluster.local:4318
+    OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
+  probes:
+    liveness:
+      path: /health
+    readiness:
+      path: /ready
+  hpa:
+    enabled: false
     minReplicas: 2
     maxReplicas: 4
     targetCPUUtilizationPercentage: 70

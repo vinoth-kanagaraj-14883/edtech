@@ -107,8 +107,101 @@ public class DataSeeder {
                     "https://picsum.photos/seed/aws/640/360",
                     tags("aws", "cloud", "amazon")));
 
+            // Bulk-seed a large catalog (1000+ courses) so the search feature has
+            // realistic volume to work against and the separate search-service has
+            // a meaningful "hot courses" set to cache. These use a dedicated UUID
+            // namespace (bulkCourseId) that never collides with the well-known
+            // 1111…-9999… demo course IDs above.
+            created += seedBulkCatalog(courseRepository);
+
             LOG.info("Course seeding complete: {} new course(s) created", created);
         };
+    }
+
+    // ── Bulk catalog generation ──────────────────────────────────────────
+    // Number of generated catalog courses. Combined with the 8 curated demo
+    // courses above this keeps the catalog well over 1000 entries.
+    static final int BULK_COURSE_COUNT = 1000;
+
+    // A stable UUID namespace for generated courses: 0xC0FFEE… + index. This is
+    // deterministic (so re-runs are idempotent) and disjoint from the demo IDs.
+    static UUID bulkCourseId(int index) {
+        return new UUID(0xC0FFEE0000000000L | (long) index, 0x0000000000000000L | (long) index);
+    }
+
+    // Subject areas paired with representative tags. The generator rotates
+    // through these to produce a varied, searchable catalog.
+    private static final String[][] SUBJECTS = {
+            {"Python", "python", "programming", "backend"},
+            {"JavaScript", "javascript", "web", "frontend"},
+            {"TypeScript", "typescript", "web", "frontend"},
+            {"React", "react", "frontend", "web"},
+            {"Node.js", "nodejs", "backend", "javascript"},
+            {"Go", "go", "backend", "systems"},
+            {"Java", "java", "backend", "enterprise"},
+            {"Spring Boot", "spring", "java", "backend"},
+            {"Ruby on Rails", "ruby", "rails", "backend"},
+            {"Kubernetes", "kubernetes", "devops", "cloud"},
+            {"Docker", "docker", "devops", "containers"},
+            {"Terraform", "terraform", "devops", "iac"},
+            {"AWS", "aws", "cloud", "amazon"},
+            {"Azure", "azure", "cloud", "microsoft"},
+            {"Google Cloud", "gcp", "cloud", "google"},
+            {"Machine Learning", "machine-learning", "ai", "data-science"},
+            {"Deep Learning", "deep-learning", "ai", "neural-networks"},
+            {"Data Engineering", "data-engineering", "data", "pipelines"},
+            {"SQL & Databases", "sql", "databases", "data"},
+            {"Cybersecurity", "security", "cybersecurity", "networking"},
+            {"DevOps", "devops", "cicd", "automation"},
+            {"Prompt Engineering", "prompt-engineering", "ai", "llm"},
+            {"Linux Administration", "linux", "sysadmin", "systems"},
+            {"Networking", "networking", "infrastructure", "systems"},
+            {"Mobile Development", "mobile", "android", "ios"}
+    };
+
+    private static final String[] LEVEL_LABELS = {"Fundamentals", "in Practice", "Deep Dive"};
+    private static final Course.CourseLevel[] LEVELS = {
+            Course.CourseLevel.BEGINNER, Course.CourseLevel.INTERMEDIATE, Course.CourseLevel.ADVANCED
+    };
+
+    private static int seedBulkCatalog(CourseRepository courseRepository) {
+        // Fast path: if the last generated id already exists, the bulk catalog
+        // was seeded on a previous startup — skip the whole batch.
+        if (courseRepository.existsById(bulkCourseId(BULK_COURSE_COUNT - 1))) {
+            return 0;
+        }
+
+        java.util.List<Course> batch = new java.util.ArrayList<>(BULK_COURSE_COUNT);
+        for (int i = 0; i < BULK_COURSE_COUNT; i++) {
+            UUID id = bulkCourseId(i);
+            if (courseRepository.existsById(id)) {
+                continue;
+            }
+            String[] subject = SUBJECTS[i % SUBJECTS.length];
+            int levelIdx = (i / SUBJECTS.length) % LEVELS.length;
+            String subjectName = subject[0];
+            String title = String.format("%s %s (Vol. %d)", subjectName, LEVEL_LABELS[levelIdx], (i / (SUBJECTS.length * LEVELS.length)) + 1);
+            String description = String.format(
+                    "A %s-level course on %s. Master %s through hands-on projects, real-world examples, "
+                            + "and practice quizzes that reinforce every concept as you learn it.",
+                    LEVELS[levelIdx].name().toLowerCase(), subjectName, subjectName);
+            // Vary price: every 5th course is free, otherwise 19.99–99.99.
+            BigDecimal price = (i % 5 == 0)
+                    ? new BigDecimal("0.00")
+                    : new BigDecimal(String.valueOf(19.99 + (i % 8) * 10));
+            int durationHours = 6 + (i % 30);
+            String thumb = "https://picsum.photos/seed/course" + i + "/640/360";
+            Set<String> courseTags = tags(subject[1], subject[2], subject[3]);
+
+            Course course = baseCourse(id, title, description, price, durationHours,
+                    LEVELS[levelIdx], thumb, courseTags);
+            batch.add(course);
+        }
+
+        if (!batch.isEmpty()) {
+            courseRepository.saveAll(batch);
+        }
+        return batch.size();
     }
 
     private interface CourseSupplier {

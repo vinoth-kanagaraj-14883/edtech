@@ -67,6 +67,7 @@ services:
       CONTENT_SERVICE_URL: ${CONTENT_SERVICE_URL:-http://content-service:8003}
       QUIZ_SERVICE_URL: ${QUIZ_SERVICE_URL:-http://quiz-service:8004}
       NOTIFICATION_SERVICE_URL: ${NOTIFICATION_SERVICE_URL:-http://notification-service:8005}
+      SEARCH_SERVICE_URL: ${SEARCH_SERVICE_URL:-http://search-service:8006}
     ports:
       - "8080:8080"
     depends_on:
@@ -81,6 +82,8 @@ services:
       quiz-service:
         condition: service_started
       notification-service:
+        condition: service_started
+      search-service:
         condition: service_started
 
   user-service:
@@ -154,6 +157,10 @@ services:
       DB_PASSWORD: ${MYSQL_PASSWORD:-edtech_password}
       DB_NAME: quizdb
       OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
+      # Downstream notification-service for "quiz.completed" events. Emitting
+      # this over HTTP (with trace-context propagation) creates the
+      # quiz-service -> notification-service edge in Jaeger's dependency graph.
+      NOTIFICATION_SERVICE_URL: ${NOTIFICATION_SERVICE_URL:-http://notification-service:8005}
     ports:
       - "8004:8004"
     volumes:
@@ -176,6 +183,26 @@ services:
     depends_on:
       redis:
         condition: service_healthy
+
+  search-service:
+    build:
+      context: ./search-service
+    container_name: edtech-search-service
+    environment:
+      PORT: 8006
+      REDIS_URL: redis://redis:6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      COURSE_SERVICE_URL: ${COURSE_SERVICE_URL:-http://course-service:8002}
+      HOT_COURSE_LIMIT: ${SEARCH_HOT_COURSE_LIMIT:-500}
+      HOT_REFRESH_MS: ${SEARCH_HOT_REFRESH_MS:-60000}
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
+    ports:
+      - "8006:8006"
+    depends_on:
+      redis:
+        condition: service_healthy
+      course-service:
+        condition: service_started
 
   frontend:
     build:

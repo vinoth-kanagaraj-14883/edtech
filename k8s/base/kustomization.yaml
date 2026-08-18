@@ -15,6 +15,7 @@ resources:
   - services/content-service-deployment.yaml
   - services/quiz-service-deployment.yaml
   - services/notification-service-deployment.yaml
+  - services/search-service-deployment.yaml
   - services/frontend-deployment.yaml
   - monitoring/otel-collector-deployment.yaml
   - monitoring/prometheus-deployment.yaml
