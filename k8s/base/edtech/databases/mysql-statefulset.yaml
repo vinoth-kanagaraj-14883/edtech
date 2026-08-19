@@ -11,10 +11,13 @@ data:
   01-init.sql: |
     CREATE DATABASE IF NOT EXISTS content_service;
     CREATE DATABASE IF NOT EXISTS quiz_service;
+    CREATE DATABASE IF NOT EXISTS tracking_service;
     CREATE USER IF NOT EXISTS 'content_service'@'%' IDENTIFIED BY 'content-db-example-password';
     CREATE USER IF NOT EXISTS 'quiz_service'@'%' IDENTIFIED BY 'quiz-db-example-password';
+    CREATE USER IF NOT EXISTS 'tracking_service'@'%' IDENTIFIED BY 'tracking-db-example-password';
     GRANT ALL PRIVILEGES ON content_service.* TO 'content_service'@'%';
     GRANT ALL PRIVILEGES ON quiz_service.* TO 'quiz_service'@'%';
+    GRANT ALL PRIVILEGES ON tracking_service.* TO 'tracking_service'@'%';
     FLUSH PRIVILEGES;
 ---
 apiVersion: v1

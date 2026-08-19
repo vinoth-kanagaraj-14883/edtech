@@ -1,4 +1,4 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import type { ReactNode } from 'react';
 
 import Footer from '@/components/Footer';
@@ -7,12 +7,17 @@ import TelemetryProvider from '@/components/TelemetryProvider';
 
 import './globals.css';
 
+// NOTE: deliberately NOT using next/font/google — it fetches the font at build
+// time, which breaks offline and air-gapped Docker builds. `--font-sans` is
+// defined in globals.css as a modern system stack instead.
+
 export const metadata: Metadata = {
   title: {
-    default: 'EduForge',
+    default: 'EduForge — Learn without limits',
     template: '%s | EduForge'
   },
-  description: 'A modern learning platform for courses, lessons, quizzes, and personalized progress tracking.',
+  description:
+    'A modern learning platform for courses, lessons, quizzes, certificates, and personalized progress tracking.',
   icons: {
     icon: '/logo.png',
     shortcut: '/logo.png',
@@ -20,18 +25,40 @@ export const metadata: Metadata = {
   }
 };
 
+export const viewport: Viewport = {
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#ffffff' },
+    { media: '(prefers-color-scheme: dark)', color: '#020617' }
+  ]
+};
+
+// Applies the stored (or system) theme before first paint so there is no
+// light-mode flash on load. Kept tiny and dependency-free on purpose.
+const themeScript = `(function(){try{var s=localStorage.getItem('eduforge-theme');var d=s?s==='dark':window.matchMedia('(prefers-color-scheme: dark)').matches;if(d)document.documentElement.classList.add('dark');}catch(e){}})();`;
+
 interface RootLayoutProps {
   children: ReactNode;
 }
 
 export default function RootLayout({ children }: RootLayoutProps) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+      </head>
       <body>
         <TelemetryProvider />
+        <a
+          href="#main"
+          className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[100] focus:rounded-xl focus:bg-brand-600 focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-white"
+        >
+          Skip to content
+        </a>
         <div className="flex min-h-screen flex-col bg-canvas">
           <Navigation />
-          <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-8 sm:px-6 lg:px-8">{children}</main>
+          <main id="main" className="mx-auto w-full max-w-7xl flex-1 px-4 py-8 sm:px-6 lg:px-8">
+            {children}
+          </main>
           <Footer />
         </div>
       </body>

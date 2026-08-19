@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
+import { ErrorAlert, Spinner } from '@/components/Feedback';
 import { markLessonComplete } from '@/lib/api';
 
 interface LessonCompletionButtonProps {
@@ -30,11 +31,30 @@ export default function LessonCompletionButton({ courseId, lessonId, completed }
   };
 
   return (
-    <div className="space-y-2">
-      <button type="button" onClick={handleComplete} className={completed ? 'secondary-button' : 'primary-button'} disabled={loading || completed}>
-        {completed ? 'Completed' : loading ? 'Saving…' : 'Mark complete'}
+    <div className="space-y-3">
+      <button
+        type="button"
+        onClick={handleComplete}
+        className={`w-full ${completed ? 'secondary-button' : 'primary-button'}`}
+        disabled={loading || completed}
+      >
+        {completed ? (
+          <>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-success-600" aria-hidden="true">
+              <path d="m20 6-11 11-5-5" />
+            </svg>
+            Completed
+          </>
+        ) : loading ? (
+          <>
+            <Spinner />
+            Saving…
+          </>
+        ) : (
+          'Mark complete'
+        )}
       </button>
-      {error ? <p className="text-sm text-rose-600">{error}</p> : null}
+      {error ? <ErrorAlert>{error}</ErrorAlert> : null}
     </div>
   );
 }

@@ -1,8 +1,9 @@
-'use client';
+﻿'use client';
 
 import { useRouter } from 'next/navigation';
 import { FormEvent, useState } from 'react';
 
+import { ErrorAlert, SuccessAlert } from '@/components/Feedback';
 import { createCourse, createLesson, updateCourse, type CreateCourseInput } from '@/lib/api';
 import type { Course } from '@/types';
 
@@ -106,14 +107,14 @@ export default function CreateCourseForm({ instructorId, existingCourse }: Creat
     <form onSubmit={handleSubmit} className="space-y-8">
       <div className="surface space-y-5 p-6">
         <div className="space-y-2">
-          <label htmlFor="title" className="text-sm font-medium text-ink-700">
+          <label htmlFor="title" className="block text-sm font-semibold text-content">
             Course title
           </label>
           <input id="title" value={title} onChange={(event) => setTitle(event.target.value)} required />
         </div>
 
         <div className="space-y-2">
-          <label htmlFor="description" className="text-sm font-medium text-ink-700">
+          <label htmlFor="description" className="block text-sm font-semibold text-content">
             Description
           </label>
           <textarea
@@ -122,14 +123,13 @@ export default function CreateCourseForm({ instructorId, existingCourse }: Creat
             onChange={(event) => setDescription(event.target.value)}
             rows={4}
             required
-            className="w-full rounded-md border border-ink-300 bg-white px-4 py-3 text-sm text-ink-900 placeholder:text-ink-500"
             placeholder="What will students learn in this course?"
           />
         </div>
 
         <div className="grid gap-4 sm:grid-cols-3">
           <div className="space-y-2">
-            <label htmlFor="level" className="text-sm font-medium text-ink-700">
+            <label htmlFor="level" className="block text-sm font-semibold text-content">
               Level
             </label>
             <select id="level" value={level} onChange={(event) => setLevel(event.target.value as typeof level)}>
@@ -139,7 +139,7 @@ export default function CreateCourseForm({ instructorId, existingCourse }: Creat
             </select>
           </div>
           <div className="space-y-2">
-            <label htmlFor="durationHours" className="text-sm font-medium text-ink-700">
+            <label htmlFor="durationHours" className="block text-sm font-semibold text-content">
               Duration (hours)
             </label>
             <input
@@ -151,7 +151,7 @@ export default function CreateCourseForm({ instructorId, existingCourse }: Creat
             />
           </div>
           <div className="space-y-2">
-            <label htmlFor="price" className="text-sm font-medium text-ink-700">
+            <label htmlFor="price" className="block text-sm font-semibold text-content">
               Price (USD)
             </label>
             <input id="price" type="number" min={0} step="0.01" value={price} onChange={(event) => setPrice(Number(event.target.value))} />
@@ -160,18 +160,18 @@ export default function CreateCourseForm({ instructorId, existingCourse }: Creat
 
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-2">
-            <label htmlFor="thumbnailUrl" className="text-sm font-medium text-ink-700">
+            <label htmlFor="thumbnailUrl" className="block text-sm font-semibold text-content">
               Thumbnail URL
             </label>
             <input
               id="thumbnailUrl"
               value={thumbnailUrl}
               onChange={(event) => setThumbnailUrl(event.target.value)}
-              placeholder="https://…"
+              placeholder="https://â€¦"
             />
           </div>
           <div className="space-y-2">
-            <label htmlFor="tags" className="text-sm font-medium text-ink-700">
+            <label htmlFor="tags" className="block text-sm font-semibold text-content">
               Tags (comma separated)
             </label>
             <input id="tags" value={tags} onChange={(event) => setTags(event.target.value)} placeholder="cloud, azure, beginner" />
@@ -193,25 +193,25 @@ export default function CreateCourseForm({ instructorId, existingCourse }: Creat
               <div className="flex items-center justify-between">
                 <p className="text-xs font-semibold uppercase tracking-[0.3em] text-brand-600">Lesson {index + 1}</p>
                 {lessons.length > 1 ? (
-                  <button type="button" onClick={() => removeLesson(index)} className="text-xs font-medium text-rose-600 hover:text-rose-700">
+                  <button type="button" onClick={() => removeLesson(index)} className="danger-button px-3 py-1.5 text-xs">
                     Remove
                   </button>
                 ) : null}
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium text-ink-700">Lesson title</label>
+                <label className="block text-sm font-semibold text-content">Lesson title</label>
                 <input value={lesson.title} onChange={(event) => updateLesson(index, { title: event.target.value })} />
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium text-ink-700">Short description</label>
+                <label className="block text-sm font-semibold text-content">Short description</label>
                 <input value={lesson.description} onChange={(event) => updateLesson(index, { description: event.target.value })} />
               </div>
 
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-ink-700">Content type</label>
+                  <label className="block text-sm font-semibold text-content">Content type</label>
                   <select
                     value={lesson.contentType}
                     onChange={(event) => updateLesson(index, { contentType: event.target.value as LessonDraft['contentType'] })}
@@ -221,7 +221,7 @@ export default function CreateCourseForm({ instructorId, existingCourse }: Creat
                   </select>
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-ink-700">Duration (minutes)</label>
+                  <label className="block text-sm font-semibold text-content">Duration (minutes)</label>
                   <input
                     type="number"
                     min={1}
@@ -233,18 +233,17 @@ export default function CreateCourseForm({ instructorId, existingCourse }: Creat
 
               {lesson.contentType === 'video' ? (
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-ink-700">Video URL</label>
-                  <input value={lesson.videoUrl} onChange={(event) => updateLesson(index, { videoUrl: event.target.value })} placeholder="https://…" />
+                  <label className="block text-sm font-semibold text-content">Video URL</label>
+                  <input value={lesson.videoUrl} onChange={(event) => updateLesson(index, { videoUrl: event.target.value })} placeholder="https://â€¦" />
                 </div>
               ) : (
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-ink-700">Article content</label>
+                  <label className="block text-sm font-semibold text-content">Article content</label>
                   <textarea
                     rows={4}
                     value={lesson.articleBody}
                     onChange={(event) => updateLesson(index, { articleBody: event.target.value })}
-                    className="w-full rounded-md border border-ink-300 bg-white px-4 py-3 text-sm text-ink-900 placeholder:text-ink-500"
-                    placeholder="Write the lesson content here…"
+                    placeholder="Write the lesson content hereâ€¦"
                   />
                 </div>
               )}
@@ -253,11 +252,11 @@ export default function CreateCourseForm({ instructorId, existingCourse }: Creat
         </div>
       ) : null}
 
-      {error ? <p className="text-sm text-rose-600">{error}</p> : null}
-      {success ? <p className="text-sm text-emerald-600">{success}</p> : null}
+      {error ? <ErrorAlert>{error}</ErrorAlert> : null}
+      {success ? <SuccessAlert>{success}</SuccessAlert> : null}
 
       <button type="submit" className="primary-button" disabled={submitting}>
-        {submitting ? 'Saving…' : isEditing ? 'Save changes' : 'Create course'}
+        {submitting ? 'Savingâ€¦' : isEditing ? 'Save changes' : 'Create course'}
       </button>
     </form>
   );

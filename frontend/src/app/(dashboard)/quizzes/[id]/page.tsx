@@ -1,3 +1,4 @@
+import { PageNotice } from '@/components/Feedback';
 import QuizRunner from '@/components/QuizRunner';
 import { getQuiz } from '@/lib/api';
 import { requireServerAuth } from '@/lib/server-auth';
@@ -15,6 +16,10 @@ export default async function QuizPage({ params }: QuizPageProps) {
     const quiz = await getQuiz(params.id, { token });
     return <QuizRunner quiz={quiz} userId={user.id} />;
   } catch (error) {
-    return <div className="surface border border-rose-500/30 bg-rose-500/10 p-8 text-rose-100">{error instanceof Error ? error.message : 'Unable to load this quiz.'}</div>;
+    return (
+      <PageNotice title="Unable to load this quiz">
+        <p>{error instanceof Error ? error.message : 'Unable to load this quiz.'}</p>
+      </PageNotice>
+    );
   }
 }

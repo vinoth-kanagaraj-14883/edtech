@@ -1,0 +1,51 @@
+{{- if .Values.certificationService.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: certification-service
+  labels:
+    {{- include "edtech.serviceLabels" (dict "context" . "name" "certification-service") | nindent 4 }}
+spec:
+  replicas: {{ .Values.certificationService.replicas }}
+  selector:
+    matchLabels:
+      {{- include "edtech.selectorLabels" (dict "Release" .Release "name" "certification-service") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "edtech.selectorLabels" (dict "Release" .Release "name" "certification-service") | nindent 8 }}
+    spec:
+      containers:
+        - name: certification-service
+          image: "{{ .Values.certificationService.image.repository }}:{{ .Values.certificationService.image.tag }}"
+          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          ports:
+            - containerPort: {{ .Values.certificationService.containerPort }}
+          env:
+            {{- include "edtech.renderEnv" .Values.certificationService.env | nindent 20 }}
+          resources:
+            {{- toYaml .Values.certificationService.resources | nindent 20 }}
+          livenessProbe:
+            httpGet:
+              path: {{ .Values.certificationService.probes.liveness.path }}
+              port: {{ .Values.certificationService.containerPort }}
+          readinessProbe:
+            httpGet:
+              path: {{ .Values.certificationService.probes.readiness.path }}
+              port: {{ .Values.certificationService.containerPort }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: certification-service
+  labels:
+    {{- include "edtech.serviceLabels" (dict "context" . "name" "certification-service") | nindent 4 }}
+spec:
+  type: {{ .Values.certificationService.service.type }}
+  selector:
+    {{- include "edtech.selectorLabels" (dict "Release" .Release "name" "certification-service") | nindent 4 }}
+  ports:
+    - name: http
+      port: {{ .Values.certificationService.service.port }}
+      targetPort: {{ .Values.certificationService.containerPort }}
+{{- end }}

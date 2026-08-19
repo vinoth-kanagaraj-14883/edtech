@@ -9,6 +9,7 @@ import cors from 'cors';
 import express, { type Request, type Response } from 'express';
 import Redis from 'ioredis';
 
+import { chaosMiddleware, startChaosPolling, stopChaos } from './chaos';
 import {
   hotCourseIndexSize,
   metricsMiddleware,
@@ -167,6 +168,9 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 app.use(metricsMiddleware);
+// Honor Redis chaos flags (skips /health,/ready,/metrics internally) so the
+// chaos-service can degrade this service during observability demos.
+app.use(chaosMiddleware);
 
 app.get('/health', (_req: Request, res: Response) => {
   res.json({ status: 'ok', service: 'search-service', timestamp: new Date().toISOString() });

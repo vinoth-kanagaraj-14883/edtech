@@ -1,0 +1,17 @@
+apiVersion: chaos-mesh.org/v1alpha1
+kind: StressChaos
+metadata:
+  name: chaos-cpu-tracking
+  namespace: edtech
+spec:
+  mode: all
+  duration: "120s"
+  selector:
+    namespaces:
+      - edtech
+    labelSelectors:
+      app: tracking-service
+  stressors:
+    cpu:
+      workers: 2
+      load: 90

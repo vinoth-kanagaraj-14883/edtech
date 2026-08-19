@@ -5,6 +5,9 @@
   (dict "name" "content-service" "config" .Values.contentService)
   (dict "name" "quiz-service" "config" .Values.quizService)
   (dict "name" "notification-service" "config" .Values.notificationService)
+  (dict "name" "payment-service" "config" .Values.paymentService)
+  (dict "name" "tracking-service" "config" .Values.trackingService)
+  (dict "name" "certification-service" "config" .Values.certificationService)
   (dict "name" "frontend" "config" .Values.frontend)
 -}}
 {{- range $services }}

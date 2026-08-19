@@ -1,0 +1,17 @@
+apiVersion: chaos-mesh.org/v1alpha1
+kind: StressChaos
+metadata:
+  name: chaos-memory-certification
+  namespace: edtech
+spec:
+  mode: all
+  duration: "120s"
+  selector:
+    namespaces:
+      - edtech
+    labelSelectors:
+      app: certification-service
+  stressors:
+    memory:
+      workers: 1
+      size: "256MB"

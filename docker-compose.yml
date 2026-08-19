@@ -68,6 +68,9 @@ services:
       QUIZ_SERVICE_URL: ${QUIZ_SERVICE_URL:-http://quiz-service:8004}
       NOTIFICATION_SERVICE_URL: ${NOTIFICATION_SERVICE_URL:-http://notification-service:8005}
       SEARCH_SERVICE_URL: ${SEARCH_SERVICE_URL:-http://search-service:8006}
+      PAYMENT_SERVICE_URL: ${PAYMENT_SERVICE_URL:-http://payment-service:8007}
+      TRACKING_SERVICE_URL: ${TRACKING_SERVICE_URL:-http://tracking-service:8008}
+      CERTIFICATION_SERVICE_URL: ${CERTIFICATION_SERVICE_URL:-http://certification-service:8009}
     ports:
       - "8080:8080"
     depends_on:
@@ -84,6 +87,12 @@ services:
       notification-service:
         condition: service_started
       search-service:
+        condition: service_started
+      payment-service:
+        condition: service_started
+      tracking-service:
+        condition: service_started
+      certification-service:
         condition: service_started
 
   user-service:
@@ -203,6 +212,91 @@ services:
         condition: service_healthy
       course-service:
         condition: service_started
+
+  payment-service:
+    build:
+      context: ./payment-service
+    container_name: edtech-payment-service
+    environment:
+      DATABASE_URL: postgresql://edtech:${POSTGRES_PASSWORD:-edtech_password}@postgres:5432/paymentdb
+      USER_SERVICE_URL: ${USER_SERVICE_URL:-http://user-service:8001}
+      COURSE_SERVICE_URL: ${COURSE_SERVICE_URL:-http://course-service:8002}
+      NOTIFICATION_SERVICE_URL: ${NOTIFICATION_SERVICE_URL:-http://notification-service:8005}
+      REDIS_ADDR: redis:6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
+    ports:
+      - "8007:8007"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  tracking-service:
+    build:
+      context: ./tracking-service
+    container_name: edtech-tracking-service
+    environment:
+      PORT: 8008
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_USER: ${MYSQL_USER:-edtech}
+      DB_PASSWORD: ${MYSQL_PASSWORD:-edtech_password}
+      DB_NAME: trackingdb
+      REDIS_URL: redis://redis:6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      CONTENT_SERVICE_URL: ${CONTENT_SERVICE_URL:-http://content-service:8003}
+      COURSE_SERVICE_URL: ${COURSE_SERVICE_URL:-http://course-service:8002}
+      CERTIFICATION_SERVICE_URL: ${CERTIFICATION_SERVICE_URL:-http://certification-service:8009}
+      NOTIFICATION_SERVICE_URL: ${NOTIFICATION_SERVICE_URL:-http://notification-service:8005}
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
+    ports:
+      - "8008:8008"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  certification-service:
+    build:
+      context: ./certification-service
+    container_name: edtech-certification-service
+    environment:
+      DATABASE_URL: postgresql://edtech:${POSTGRES_PASSWORD:-edtech_password}@postgres:5432/certificationdb
+      USER_SERVICE_URL: ${USER_SERVICE_URL:-http://user-service:8001}
+      COURSE_SERVICE_URL: ${COURSE_SERVICE_URL:-http://course-service:8002}
+      NOTIFICATION_SERVICE_URL: ${NOTIFICATION_SERVICE_URL:-http://notification-service:8005}
+      REDIS_ADDR: redis:6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
+    ports:
+      - "8009:8009"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  # Dedicated chaos server. Sets Redis chaos flags that every service polls
+  # (application scenarios) and can drive Kubernetes chaos when run in-cluster.
+  # Dashboard + API on its own port so it can be demoed independently.
+  chaos-service:
+    build:
+      context: ./chaos-service
+    container_name: edtech-chaos-service
+    environment:
+      CHAOS_PORT: 8090
+      REDIS_ADDR: redis:6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      KUBE_NAMESPACE: edtech
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
+    ports:
+      - "8090:8090"
+    depends_on:
+      redis:
+        condition: service_healthy
 
   frontend:
     build:

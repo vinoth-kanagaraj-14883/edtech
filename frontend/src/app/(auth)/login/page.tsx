@@ -4,6 +4,8 @@ import Link from 'next/link';
 import { FormEvent, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
+import PasswordField from '@/components/PasswordField';
+
 export default function LoginPage() {
   const router = useRouter();
   const [form, setForm] = useState({ email: '', password: '' });
@@ -42,32 +44,72 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="surface overflow-hidden">
-      <div className="border-b border-ink-300/60 px-8 py-8">
-        <p className="text-sm font-semibold uppercase tracking-[0.3em] text-brand-600">Welcome back</p>
-        <h1 className="mt-3 text-3xl font-semibold text-ink-900">Sign in to continue learning</h1>
-        <p className="mt-3 text-sm text-ink-500">Access your courses, quizzes, and progress from a single dashboard.</p>
-      </div>
+    <div className="surface p-8 sm:p-9">
+      <header className="space-y-2">
+        <p className="eyebrow">Welcome back</p>
+        <h1 className="text-headline text-content">Sign in to continue learning</h1>
+        <p className="section-subtitle">
+          Access your courses, quizzes and progress from a single dashboard.
+        </p>
+      </header>
 
-      <form onSubmit={handleSubmit} className="space-y-6 px-8 py-8">
-        <div className="space-y-2">
-          <label htmlFor="email" className="text-sm font-medium text-ink-700">Email address</label>
-          <input id="email" type="email" autoComplete="email" value={form.email} onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))} required />
+      <form onSubmit={handleSubmit} className="mt-8 space-y-5" noValidate>
+        <div className="space-y-1.5">
+          <label htmlFor="email" className="block text-sm font-semibold text-content">
+            Email address
+          </label>
+          <input
+            id="email"
+            type="email"
+            autoComplete="email"
+            placeholder="you@example.com"
+            value={form.email}
+            onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))}
+            required
+            aria-invalid={error ? true : undefined}
+          />
         </div>
 
-        <div className="space-y-2">
-          <label htmlFor="password" className="text-sm font-medium text-ink-700">Password</label>
-          <input id="password" type="password" autoComplete="current-password" value={form.password} onChange={(event) => setForm((current) => ({ ...current, password: event.target.value }))} required />
-        </div>
+        <PasswordField
+          id="password"
+          label="Password"
+          value={form.password}
+          onChange={(value) => setForm((current) => ({ ...current, password: value }))}
+          autoComplete="current-password"
+        />
 
-        {error ? <p className="text-sm text-rose-600">{error}</p> : null}
+        {error ? (
+          <div
+            role="alert"
+            className="flex items-start gap-2.5 rounded-xl border border-danger-500/25 bg-danger-50 px-3.5 py-3 text-sm text-danger-600 dark:bg-danger-500/10"
+          >
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="mt-px shrink-0" aria-hidden="true">
+              <circle cx="12" cy="12" r="9" />
+              <path d="M12 8v4.5M12 16h.01" />
+            </svg>
+            <span>{error}</span>
+          </div>
+        ) : null}
 
-        <button type="submit" className="primary-button w-full" disabled={loading}>
-          {loading ? 'Signing in…' : 'Login'}
+        <button type="submit" className="primary-button w-full py-3" disabled={loading}>
+          {loading ? (
+            <>
+              <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="3" className="opacity-25" />
+                <path d="M21 12a9 9 0 0 0-9-9" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+              </svg>
+              Signing in…
+            </>
+          ) : (
+            'Sign in'
+          )}
         </button>
 
-        <p className="text-center text-sm text-ink-500">
-          New to the platform? <Link href="/register" className="font-medium text-brand-600 hover:text-brand-700">Create an account</Link>
+        <p className="text-center text-sm text-content-subtle">
+          New to the platform?{' '}
+          <Link href="/register" className="font-semibold text-brand-600 transition hover:text-brand-700">
+            Create an account
+          </Link>
         </p>
       </form>
     </div>

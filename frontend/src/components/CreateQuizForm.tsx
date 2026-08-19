@@ -1,8 +1,9 @@
-'use client';
+﻿'use client';
 
 import { useRouter } from 'next/navigation';
 import { FormEvent, useState } from 'react';
 
+import { ErrorAlert, SuccessAlert } from '@/components/Feedback';
 import { createQuiz, type CreateQuizInput, type QuizQuestionInput } from '@/lib/api';
 
 const emptyQuestion = (): QuizQuestionInput => ({
@@ -86,14 +87,14 @@ export default function CreateQuizForm() {
     <form onSubmit={handleSubmit} className="space-y-8">
       <div className="surface space-y-5 p-6">
         <div className="space-y-2">
-          <label htmlFor="title" className="text-sm font-medium text-ink-700">
+          <label htmlFor="title" className="block text-sm font-semibold text-content">
             Quiz title
           </label>
           <input id="title" value={title} onChange={(event) => setTitle(event.target.value)} required />
         </div>
 
         <div className="space-y-2">
-          <label htmlFor="description" className="text-sm font-medium text-ink-700">
+          <label htmlFor="description" className="block text-sm font-semibold text-content">
             Description
           </label>
           <textarea
@@ -101,14 +102,13 @@ export default function CreateQuizForm() {
             value={description}
             onChange={(event) => setDescription(event.target.value)}
             rows={3}
-            className="w-full rounded-md border border-ink-300 bg-white px-4 py-3 text-sm text-ink-900 placeholder:text-ink-500"
             placeholder="What will students practice in this quiz?"
           />
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-2">
-            <label htmlFor="timeLimit" className="text-sm font-medium text-ink-700">
+            <label htmlFor="timeLimit" className="block text-sm font-semibold text-content">
               Time limit (minutes)
             </label>
             <input
@@ -120,7 +120,7 @@ export default function CreateQuizForm() {
             />
           </div>
           <div className="space-y-2">
-            <label htmlFor="passingScore" className="text-sm font-medium text-ink-700">
+            <label htmlFor="passingScore" className="block text-sm font-semibold text-content">
               Passing score (%)
             </label>
             <input
@@ -141,20 +141,20 @@ export default function CreateQuizForm() {
             <div className="flex items-center justify-between">
               <p className="text-xs font-semibold uppercase tracking-[0.3em] text-brand-600">Question {index + 1}</p>
               {questions.length > 1 ? (
-                <button type="button" onClick={() => removeQuestion(index)} className="text-xs font-medium text-rose-600 hover:text-rose-700">
+                <button type="button" onClick={() => removeQuestion(index)} className="danger-button px-3 py-1.5 text-xs">
                   Remove
                 </button>
               ) : null}
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium text-ink-700">Question text</label>
+              <label className="block text-sm font-semibold text-content">Question text</label>
               <input value={question.text} onChange={(event) => updateQuestion(index, { text: event.target.value })} required />
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <label className="text-sm font-medium text-ink-700">Question type</label>
+                <label className="block text-sm font-semibold text-content">Question type</label>
                 <select
                   value={question.questionType}
                   onChange={(event) =>
@@ -170,7 +170,7 @@ export default function CreateQuizForm() {
                 </select>
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-medium text-ink-700">Points</label>
+                <label className="block text-sm font-semibold text-content">Points</label>
                 <input
                   type="number"
                   min={1}
@@ -182,7 +182,7 @@ export default function CreateQuizForm() {
 
             {question.questionType === 'multiple_choice' ? (
               <div className="space-y-2">
-                <label className="text-sm font-medium text-ink-700">Options</label>
+                <label className="block text-sm font-semibold text-content">Options</label>
                 <div className="grid gap-2 sm:grid-cols-2">
                   {(question.options ?? []).map((option, optionIndex) => (
                     <input
@@ -197,10 +197,10 @@ export default function CreateQuizForm() {
             ) : null}
 
             <div className="space-y-2">
-              <label className="text-sm font-medium text-ink-700">Correct answer</label>
+              <label className="block text-sm font-semibold text-content">Correct answer</label>
               {question.questionType === 'true_false' ? (
                 <select value={question.correctAnswer} onChange={(event) => updateQuestion(index, { correctAnswer: event.target.value })}>
-                  <option value="">Select…</option>
+                  <option value="">Selectâ€¦</option>
                   <option value="True">True</option>
                   <option value="False">False</option>
                 </select>
@@ -221,11 +221,11 @@ export default function CreateQuizForm() {
         </button>
       </div>
 
-      {error ? <p className="text-sm text-rose-600">{error}</p> : null}
-      {success ? <p className="text-sm text-emerald-600">{success}</p> : null}
+      {error ? <ErrorAlert>{error}</ErrorAlert> : null}
+      {success ? <SuccessAlert>{success}</SuccessAlert> : null}
 
       <button type="submit" className="primary-button" disabled={submitting}>
-        {submitting ? 'Creating quiz…' : 'Create quiz'}
+        {submitting ? 'Creating quizâ€¦' : 'Create quiz'}
       </button>
     </form>
   );

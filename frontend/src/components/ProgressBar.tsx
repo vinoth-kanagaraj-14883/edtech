@@ -8,16 +8,29 @@ interface ProgressBarProps {
 
 export default function ProgressBar({ value, label, className }: ProgressBarProps) {
   const clamped = Math.max(0, Math.min(100, value));
+  const complete = clamped >= 100;
 
   return (
-    <div className={clsx('space-y-2', className)}>
-      <div className="flex items-center justify-between text-xs font-semibold text-ink-500">
-        <span>{label ?? 'Progress'}</span>
-        <span>{Math.round(clamped)}%</span>
+    <div className={clsx('space-y-1.5', className)}>
+      <div className="flex items-center justify-between text-[11px] font-semibold">
+        <span className="text-content-subtle">{label ?? 'Progress'}</span>
+        <span className={complete ? 'text-success-600' : 'text-brand-600'}>
+          {complete ? 'Complete' : `${Math.round(clamped)}%`}
+        </span>
       </div>
-      <div className="h-2 overflow-hidden rounded-full bg-muted ring-1 ring-inset ring-ink-300/60">
+      <div
+        className="h-1.5 overflow-hidden rounded-full bg-muted ring-1 ring-inset ring-hairline"
+        role="progressbar"
+        aria-valuenow={Math.round(clamped)}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-label={label ?? 'Progress'}
+      >
         <div
-          className="h-full rounded-full bg-gradient-to-r from-brand-500 to-forge-500 transition-all duration-300"
+          className={clsx(
+            'h-full rounded-full transition-all duration-500 ease-smooth',
+            complete ? 'bg-success-500' : 'bg-gradient-to-r from-brand-500 to-accent-500'
+          )}
           style={{ width: `${clamped}%` }}
         />
       </div>

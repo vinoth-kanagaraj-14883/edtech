@@ -624,6 +624,58 @@ open http://localhost:16686/search      # pick service edtech-api-gateway → Fi
 
 ---
 
+## 11b. Revamp — new services, relationships & chaos signals
+
+The platform was extended with three business services and a chaos server. They
+exist largely to make the **service dependency graph deep and interesting** and
+to let you inject faults and watch them propagate.
+
+### New trace edges (what shows in Jaeger's System Architecture)
+
+```
+api-gateway ─► payment-service ─► course-service        (verify price)
+                              └─► user-service           (verify learner)
+                              └─► notification-service   (payment.received)
+
+api-gateway ─► tracking-service ─► content-service       (lesson count → progress)
+                               └─► certification-service (at 100% complete)
+                               └─► notification-service  (course.completed)
+
+api-gateway ─► certification-service ─► user-service     (learner name)
+                                    └─► course-service   (course title)
+                                    └─► notification-service (certificate.issued)
+```
+
+Every new service propagates W3C trace context on its outbound calls (Python via
+instrumented `httpx`; Node via manual `propagation.inject` on `fetch`, since
+undici is not auto-instrumented), so these edges appear as real dependency links
+rather than disconnected root traces. The always-on load generator
+(`demo/load-continuous.js`) exercises the full enroll → pay → learn → track →
+certify journey so the map and RED metrics stay populated.
+
+New Prometheus scrape jobs were added for `search-service:8006`,
+`payment-service:8007`, `tracking-service:8008`, `certification-service:8009`
+and `chaos-service:8090` (see `observability/prometheus.yml` and
+`monitoring/prometheus/prometheus.yml`). Notable service metrics:
+`payment_transactions_total{status}`, `certification_service_certificates_issued_total`,
+`chaos_service_active_scenarios`, `chaos_service_scenario_runs_total`.
+
+### Chaos as an observability signal
+
+The chaos server (`chaos-service`, port `8090`) injects application faults by
+setting Redis flags every service polls (`chaos:{latency,error,cpu,memleak}:<service>`
++ `chaos:payment-gateway:down`), and Kubernetes faults via the k8s API. When a
+request is degraded, the service tags its active span with **`chaos.injected`**
+(`latency` / `error`) — so in Jaeger you can filter traces by that attribute to
+prove the fault landed exactly where you injected it, and correlate the latency
+or error spike in Prometheus/Grafana to the same service. This is the core demo
+loop: **inject → observe → explain → reset.**
+
+See section 8 of the README and `chaos-service/README.md` for the 10 scenarios
+and exactly what each one surfaces in the telemetry.
+
+---
+
 ## 12. Why this matters for the Site24x7 comparison
 
 | Question an operator asks | This OSS stack answers with… | Site24x7 equivalent |

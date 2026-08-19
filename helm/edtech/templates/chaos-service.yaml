@@ -1,0 +1,101 @@
+{{- if .Values.chaosService.enabled }}
+{{- if .Values.chaosService.rbac.create }}
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: chaos-service
+  labels:
+    {{- include "edtech.serviceLabels" (dict "context" . "name" "chaos-service") | nindent 4 }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: chaos-service
+  labels:
+    {{- include "edtech.serviceLabels" (dict "context" . "name" "chaos-service") | nindent 4 }}
+rules:
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "delete"]
+  - apiGroups: ["batch"]
+    resources: ["jobs"]
+    verbs: ["get", "list", "create", "delete"]
+  - apiGroups: ["networking.k8s.io"]
+    resources: ["networkpolicies"]
+    verbs: ["get", "list", "create", "delete", "update"]
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    verbs: ["get", "list", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: chaos-service
+  labels:
+    {{- include "edtech.serviceLabels" (dict "context" . "name" "chaos-service") | nindent 4 }}
+subjects:
+  - kind: ServiceAccount
+    name: chaos-service
+    namespace: {{ .Release.Namespace }}
+roleRef:
+  kind: Role
+  name: chaos-service
+  apiGroup: rbac.authorization.k8s.io
+---
+{{- end }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: chaos-service
+  labels:
+    {{- include "edtech.serviceLabels" (dict "context" . "name" "chaos-service") | nindent 4 }}
+spec:
+  replicas: {{ .Values.chaosService.replicas }}
+  selector:
+    matchLabels:
+      {{- include "edtech.selectorLabels" (dict "Release" .Release "name" "chaos-service") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "edtech.selectorLabels" (dict "Release" .Release "name" "chaos-service") | nindent 8 }}
+    spec:
+      {{- if .Values.chaosService.rbac.create }}
+      serviceAccountName: chaos-service
+      {{- end }}
+      containers:
+        - name: chaos-service
+          image: "{{ .Values.chaosService.image.repository }}:{{ .Values.chaosService.image.tag }}"
+          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          ports:
+            - containerPort: {{ .Values.chaosService.containerPort }}
+          env:
+            {{- include "edtech.renderEnv" .Values.chaosService.env | nindent 20 }}
+          resources:
+            {{- toYaml .Values.chaosService.resources | nindent 20 }}
+          livenessProbe:
+            httpGet:
+              path: {{ .Values.chaosService.probes.liveness.path }}
+              port: {{ .Values.chaosService.containerPort }}
+          readinessProbe:
+            httpGet:
+              path: {{ .Values.chaosService.probes.readiness.path }}
+              port: {{ .Values.chaosService.containerPort }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: chaos-service
+  labels:
+    {{- include "edtech.serviceLabels" (dict "context" . "name" "chaos-service") | nindent 4 }}
+spec:
+  type: {{ .Values.chaosService.service.type }}
+  selector:
+    {{- include "edtech.selectorLabels" (dict "Release" .Release "name" "chaos-service") | nindent 4 }}
+  ports:
+    - name: http
+      port: {{ .Values.chaosService.service.port }}
+      targetPort: {{ .Values.chaosService.containerPort }}
+      {{- if and (eq .Values.chaosService.service.type "NodePort") .Values.chaosService.service.nodePort }}
+      nodePort: {{ .Values.chaosService.service.nodePort }}
+      {{- end }}
+{{- end }}

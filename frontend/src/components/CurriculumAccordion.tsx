@@ -19,19 +19,24 @@ export default function CurriculumAccordion({ courseId, lessons }: CurriculumAcc
   const totalMinutes = lessons.reduce((sum, lesson) => sum + (lesson.durationMinutes ?? 0), 0);
 
   if (lessons.length === 0) {
-    return <p className="text-sm text-ink-500">No lessons published yet.</p>;
+    return (
+      <div className="surface px-6 py-10 text-center">
+        <p className="text-sm text-content-subtle">No lessons published yet.</p>
+      </div>
+    );
   }
 
   return (
-    <div className="overflow-hidden rounded-lg border border-ink-300/60">
+    <div className="overflow-hidden rounded-2xl border border-hairline bg-surface shadow-card">
       <button
         type="button"
         onClick={() => setOpen((value) => !value)}
         aria-expanded={open}
-        className="flex w-full items-center justify-between gap-4 bg-muted px-5 py-4 text-left hover:bg-ink-300/20"
+        aria-controls="curriculum-panel"
+        className="flex w-full items-center justify-between gap-4 bg-muted px-5 py-4 text-left transition hover:bg-hairline/40"
       >
-        <span className="font-bold text-ink-900">Course content</span>
-        <span className="flex items-center gap-3 text-sm text-ink-500">
+        <span className="font-bold text-content">Course content</span>
+        <span className="flex items-center gap-3 text-sm text-content-subtle">
           <span>
             {lessons.length} lectures{totalMinutes > 0 ? ` • ${totalMinutes} min` : ''}
           </span>
@@ -42,7 +47,8 @@ export default function CurriculumAccordion({ courseId, lessons }: CurriculumAcc
             fill="none"
             stroke="currentColor"
             strokeWidth="2"
-            className={`transition-transform ${open ? 'rotate-180' : ''}`}
+            aria-hidden="true"
+            className={`transition-transform duration-300 ease-smooth ${open ? 'rotate-180' : ''}`}
           >
             <path d="m5 8 5 5 5-5" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
@@ -50,23 +56,40 @@ export default function CurriculumAccordion({ courseId, lessons }: CurriculumAcc
       </button>
 
       {open ? (
-        <ul className="divide-y divide-ink-300/60 bg-white">
+        <ul id="curriculum-panel" className="divide-y divide-hairline">
           {lessons.map((lesson) => (
             <li key={lesson.id}>
               <Link
                 href={`/courses/${courseId}/lessons/${lesson.id}`}
-                className="flex items-center justify-between gap-4 px-5 py-3.5 hover:bg-muted"
+                className="group flex items-center justify-between gap-4 px-5 py-3.5 transition hover:bg-muted"
               >
-                <span className="flex items-center gap-3">
-                  <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor" className="shrink-0 text-ink-500">
-                    <path d="M6 4v12l10-6z" />
-                  </svg>
-                  <span className="text-sm text-ink-800">
-                    {lesson.title}
-                    {lesson.completed ? <span className="ml-2 text-xs font-semibold text-emerald-600">Completed</span> : null}
+                <span className="flex min-w-0 items-center gap-3">
+                  <span
+                    aria-hidden="true"
+                    className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg transition ${
+                      lesson.completed
+                        ? 'bg-success-50 text-success-600 dark:bg-success-500/12'
+                        : 'bg-muted text-content-subtle ring-1 ring-inset ring-hairline group-hover:text-brand-600'
+                    }`}
+                  >
+                    {lesson.completed ? (
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="m20 6-11 11-5-5" />
+                      </svg>
+                    ) : (
+                      <svg width="13" height="13" viewBox="0 0 20 20" fill="currentColor">
+                        <path d="M6 4v12l10-6z" />
+                      </svg>
+                    )}
+                  </span>
+                  <span className="min-w-0 text-sm text-content-muted transition group-hover:text-content">
+                    <span className="truncate">{lesson.title}</span>
+                    {lesson.completed ? (
+                      <span className="ml-2 text-xs font-semibold text-success-600">Completed</span>
+                    ) : null}
                   </span>
                 </span>
-                <span className="shrink-0 text-xs text-ink-500">
+                <span className="shrink-0 text-xs text-content-subtle">
                   {lesson.durationMinutes ? `${lesson.durationMinutes} min` : `Lesson ${lesson.order}`}
                 </span>
               </Link>

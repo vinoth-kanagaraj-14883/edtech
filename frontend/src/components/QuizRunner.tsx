@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react';
 
+import { ErrorAlert, Spinner } from '@/components/Feedback';
 import QuizQuestion from '@/components/QuizQuestion';
 import { submitQuiz } from '@/lib/api';
 import type { Quiz, Submission } from '@/types';
@@ -48,16 +49,38 @@ export default function QuizRunner({ quiz, userId }: QuizRunnerProps) {
 
   return (
     <div className="space-y-6">
-      <div className="surface flex flex-wrap items-center justify-between gap-4 p-6">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-brand-600">Assessment</p>
-          <h1 className="mt-2 text-3xl font-semibold text-ink-900">{quiz.title}</h1>
-          {quiz.description ? <p className="mt-3 text-ink-700">{quiz.description}</p> : null}
+      <header className="surface space-y-4 p-6">
+        <div className="space-y-2">
+          <p className="eyebrow">Assessment</p>
+          <h1 className="text-headline text-content">{quiz.title}</h1>
+          {quiz.description ? (
+            <p className="section-subtitle max-w-2xl">{quiz.description}</p>
+          ) : null}
         </div>
-        <div className="rounded-2xl border border-ink-300/60 bg-white px-4 py-3 text-sm text-ink-700">
-          {answeredCount}/{quiz.questions.length} answered
+
+        {/* Answer progress */}
+        <div className="space-y-1.5 border-t border-hairline pt-4">
+          <div className="flex items-center justify-between text-xs font-semibold">
+            <span className="text-content-subtle">Progress</span>
+            <span className="text-brand-600">
+              {answeredCount} of {quiz.questions.length} answered
+            </span>
+          </div>
+          <div
+            className="h-1.5 overflow-hidden rounded-full bg-muted ring-1 ring-inset ring-hairline"
+            role="progressbar"
+            aria-valuenow={answeredCount}
+            aria-valuemin={0}
+            aria-valuemax={quiz.questions.length}
+            aria-label="Questions answered"
+          >
+            <div
+              className="h-full rounded-full bg-gradient-to-r from-brand-500 to-accent-500 transition-all duration-500 ease-smooth"
+              style={{ width: `${quiz.questions.length ? (answeredCount / quiz.questions.length) * 100 : 0}%` }}
+            />
+          </div>
         </div>
-      </div>
+      </header>
 
       <div className="space-y-4">
         {quiz.questions.map((question, index) => (
@@ -66,20 +89,60 @@ export default function QuizRunner({ quiz, userId }: QuizRunnerProps) {
       </div>
 
       <div className="surface space-y-4 p-6">
-        <button type="button" onClick={handleSubmit} className="primary-button" disabled={submitting || answeredCount !== quiz.questions.length}>
-          {submitting ? 'Submitting…' : 'Submit quiz'}
+        <button
+          type="button"
+          onClick={handleSubmit}
+          className="primary-button w-full py-3 sm:w-auto"
+          disabled={submitting || answeredCount !== quiz.questions.length}
+        >
+          {submitting ? (
+            <>
+              <Spinner />
+              Submitting…
+            </>
+          ) : (
+            'Submit quiz'
+          )}
         </button>
-        {answeredCount !== quiz.questions.length ? <p className="text-sm text-ink-500">Answer every question before submitting.</p> : null}
-        {error ? <p className="text-sm text-rose-600">{error}</p> : null}
+        {answeredCount !== quiz.questions.length ? (
+          <p className="text-sm text-content-subtle">Answer every question before submitting.</p>
+        ) : null}
+        {error ? <ErrorAlert>{error}</ErrorAlert> : null}
         {result ? (
-          <div className="rounded-2xl border border-emerald-300 bg-emerald-50 p-5 text-sm text-emerald-800">
-            <p className="text-lg font-semibold text-emerald-900">Results</p>
-            <p className="mt-2">
-              Score: {result.score ?? 0}
-              {typeof result.totalQuestions === 'number' ? ` / ${result.totalQuestions}` : ''}
-            </p>
-            {typeof result.correctCount === 'number' ? <p className="mt-1">Correct answers: {result.correctCount}</p> : null}
-            {result.feedback ? <p className="mt-3">{result.feedback}</p> : null}
+          <div className="animate-scale-in rounded-2xl border border-success-500/25 bg-success-50 p-6 dark:bg-success-500/10">
+            <div className="flex items-center gap-3">
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-success-500 text-white">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="m20 6-11 11-5-5" />
+                </svg>
+              </span>
+              <div>
+                <p className="text-lg font-bold text-content">Quiz complete</p>
+                <p className="text-sm text-content-muted">Here&apos;s how you did.</p>
+              </div>
+            </div>
+
+            <dl className="mt-5 grid gap-4 sm:grid-cols-2">
+              <div className="rounded-xl bg-surface p-4 ring-1 ring-inset ring-hairline">
+                <dt className="stat-label">Score</dt>
+                <dd className="stat-value mt-1">
+                  {result.score ?? 0}
+                  {typeof result.totalQuestions === 'number' ? (
+                    <span className="text-lg font-bold text-content-subtle"> / {result.totalQuestions}</span>
+                  ) : null}
+                </dd>
+              </div>
+              {typeof result.correctCount === 'number' ? (
+                <div className="rounded-xl bg-surface p-4 ring-1 ring-inset ring-hairline">
+                  <dt className="stat-label">Correct answers</dt>
+                  <dd className="stat-value mt-1">{result.correctCount}</dd>
+                </div>
+              ) : null}
+            </dl>
+
+            {result.feedback ? (
+              <p className="mt-4 text-sm leading-relaxed text-content-muted">{result.feedback}</p>
+            ) : null}
           </div>
         ) : null}
       </div>

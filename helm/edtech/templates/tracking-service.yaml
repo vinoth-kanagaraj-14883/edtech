@@ -1,0 +1,51 @@
+{{- if .Values.trackingService.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tracking-service
+  labels:
+    {{- include "edtech.serviceLabels" (dict "context" . "name" "tracking-service") | nindent 4 }}
+spec:
+  replicas: {{ .Values.trackingService.replicas }}
+  selector:
+    matchLabels:
+      {{- include "edtech.selectorLabels" (dict "Release" .Release "name" "tracking-service") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "edtech.selectorLabels" (dict "Release" .Release "name" "tracking-service") | nindent 8 }}
+    spec:
+      containers:
+        - name: tracking-service
+          image: "{{ .Values.trackingService.image.repository }}:{{ .Values.trackingService.image.tag }}"
+          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          ports:
+            - containerPort: {{ .Values.trackingService.containerPort }}
+          env:
+            {{- include "edtech.renderEnv" .Values.trackingService.env | nindent 20 }}
+          resources:
+            {{- toYaml .Values.trackingService.resources | nindent 20 }}
+          livenessProbe:
+            httpGet:
+              path: {{ .Values.trackingService.probes.liveness.path }}
+              port: {{ .Values.trackingService.containerPort }}
+          readinessProbe:
+            httpGet:
+              path: {{ .Values.trackingService.probes.readiness.path }}
+              port: {{ .Values.trackingService.containerPort }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: tracking-service
+  labels:
+    {{- include "edtech.serviceLabels" (dict "context" . "name" "tracking-service") | nindent 4 }}
+spec:
+  type: {{ .Values.trackingService.service.type }}
+  selector:
+    {{- include "edtech.selectorLabels" (dict "Release" .Release "name" "tracking-service") | nindent 4 }}
+  ports:
+    - name: http
+      port: {{ .Values.trackingService.service.port }}
+      targetPort: {{ .Values.trackingService.containerPort }}
+{{- end }}

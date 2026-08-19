@@ -43,6 +43,25 @@ groups:
         expr: sum(rate(notification_service_http_requests_total[5m]))
         labels:
           job: notification-service
+      # search / tracking are Node services that expose the GENERIC
+      # http_requests_total name (same as content-service), so they must be
+      # disambiguated by the `service` default label, not the metric name.
+      - record: edtech:request_rate:job
+        expr: sum(rate(http_requests_total{service="search-service"}[5m]))
+        labels:
+          job: search-service
+      - record: edtech:request_rate:job
+        expr: sum(rate(payment_service_http_requests_total[5m]))
+        labels:
+          job: payment-service
+      - record: edtech:request_rate:job
+        expr: sum(rate(http_requests_total{service="tracking-service"}[5m]))
+        labels:
+          job: tracking-service
+      - record: edtech:request_rate:job
+        expr: sum(rate(certification_service_http_requests_total[5m]))
+        labels:
+          job: certification-service
 
       # ---- Error rate (fraction of 5xx responses, 5m) ----
       - record: edtech:error_rate:job

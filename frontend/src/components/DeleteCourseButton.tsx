@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
+import { ErrorAlert, Spinner } from '@/components/Feedback';
 import { deleteCourse } from '@/lib/api';
 
 interface DeleteCourseButtonProps {
@@ -36,11 +37,23 @@ export default function DeleteCourseButton({ courseId, redirectTo }: DeleteCours
   };
 
   return (
-    <div className="flex flex-col items-end gap-1">
-      <button type="button" onClick={handleDelete} disabled={loading} className="text-xs font-medium text-rose-600 hover:text-rose-700">
-        {loading ? 'Deleting…' : 'Delete'}
+    <div className="flex flex-col items-end gap-2">
+      <button type="button" onClick={handleDelete} disabled={loading} className="danger-button px-3 py-1.5 text-xs">
+        {loading ? (
+          <>
+            <Spinner className="h-3.5 w-3.5" />
+            Deleting…
+          </>
+        ) : (
+          <>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3" />
+            </svg>
+            Delete
+          </>
+        )}
       </button>
-      {error ? <p className="text-xs text-rose-600">{error}</p> : null}
+      {error ? <ErrorAlert>{error}</ErrorAlert> : null}
     </div>
   );
 }

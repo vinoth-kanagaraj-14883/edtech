@@ -1,0 +1,119 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: chaos-service
+  namespace: edtech
+  labels:
+    app: chaos-service
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: chaos-service
+  namespace: edtech
+  labels:
+    app: chaos-service
+rules:
+  # pod-kill
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "delete"]
+  # cpu-stress / memory-oom
+  - apiGroups: ["batch"]
+    resources: ["jobs"]
+    verbs: ["get", "list", "create", "delete"]
+  # network-partition
+  - apiGroups: ["networking.k8s.io"]
+    resources: ["networkpolicies"]
+    verbs: ["get", "list", "create", "delete", "update"]
+  # bad-deploy
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    verbs: ["get", "list", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: chaos-service
+  namespace: edtech
+  labels:
+    app: chaos-service
+subjects:
+  - kind: ServiceAccount
+    name: chaos-service
+    namespace: edtech
+roleRef:
+  kind: Role
+  name: chaos-service
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: chaos-service
+  namespace: edtech
+  labels:
+    app: chaos-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: chaos-service
+  template:
+    metadata:
+      labels:
+        app: chaos-service
+    spec:
+      serviceAccountName: chaos-service
+      containers:
+        - name: chaos-service
+          image: edtech/chaos-service:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8090
+          env:
+            - name: CHAOS_PORT
+              value: "8090"
+            - name: REDIS_ADDR
+              value: "redis:6379"
+            - name: KUBE_NAMESPACE
+              value: "edtech"
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: "otel-collector.monitoring.svc.cluster.local:4317"
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8090
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8090
+            initialDelaySeconds: 10
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 50m
+              memory: 96Mi
+            limits:
+              cpu: 250m
+              memory: 256Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: chaos-service
+  namespace: edtech
+  labels:
+    app: chaos-service
+spec:
+  # NodePort so the dashboard is reachable on a dedicated port during demos.
+  type: NodePort
+  selector:
+    app: chaos-service
+  ports:
+    - name: http
+      port: 8090
+      targetPort: 8090
+      nodePort: 30890

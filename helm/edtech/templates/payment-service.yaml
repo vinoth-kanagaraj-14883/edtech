@@ -1,0 +1,51 @@
+{{- if .Values.paymentService.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: payment-service
+  labels:
+    {{- include "edtech.serviceLabels" (dict "context" . "name" "payment-service") | nindent 4 }}
+spec:
+  replicas: {{ .Values.paymentService.replicas }}
+  selector:
+    matchLabels:
+      {{- include "edtech.selectorLabels" (dict "Release" .Release "name" "payment-service") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "edtech.selectorLabels" (dict "Release" .Release "name" "payment-service") | nindent 8 }}
+    spec:
+      containers:
+        - name: payment-service
+          image: "{{ .Values.paymentService.image.repository }}:{{ .Values.paymentService.image.tag }}"
+          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          ports:
+            - containerPort: {{ .Values.paymentService.containerPort }}
+          env:
+            {{- include "edtech.renderEnv" .Values.paymentService.env | nindent 20 }}
+          resources:
+            {{- toYaml .Values.paymentService.resources | nindent 20 }}
+          livenessProbe:
+            httpGet:
+              path: {{ .Values.paymentService.probes.liveness.path }}
+              port: {{ .Values.paymentService.containerPort }}
+          readinessProbe:
+            httpGet:
+              path: {{ .Values.paymentService.probes.readiness.path }}
+              port: {{ .Values.paymentService.containerPort }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: payment-service
+  labels:
+    {{- include "edtech.serviceLabels" (dict "context" . "name" "payment-service") | nindent 4 }}
+spec:
+  type: {{ .Values.paymentService.service.type }}
+  selector:
+    {{- include "edtech.selectorLabels" (dict "Release" .Release "name" "payment-service") | nindent 4 }}
+  ports:
+    - name: http
+      port: {{ .Values.paymentService.service.port }}
+      targetPort: {{ .Values.paymentService.containerPort }}
+{{- end }}

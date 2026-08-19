@@ -1,0 +1,15 @@
+apiVersion: chaos-mesh.org/v1alpha1
+kind: NetworkChaos
+metadata:
+  name: chaos-partition-notification
+  namespace: edtech
+spec:
+  action: partition
+  mode: all
+  duration: "60s"
+  direction: both
+  selector:
+    namespaces:
+      - edtech
+    labelSelectors:
+      app: notification-service

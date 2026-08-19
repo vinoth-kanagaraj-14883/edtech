@@ -4,8 +4,14 @@ import Link from 'next/link';
 import { FormEvent, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
+import PasswordField from '@/components/PasswordField';
 import { registerUser } from '@/lib/api';
 import type { User } from '@/types';
+
+const ROLES: { value: User['role']; label: string; description: string }[] = [
+  { value: 'student', label: 'Student', description: 'Take courses and quizzes' },
+  { value: 'instructor', label: 'Instructor', description: 'Create and publish content' }
+];
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -37,46 +43,132 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="surface overflow-hidden">
-      <div className="border-b border-ink-300/60 px-8 py-8">
-        <p className="text-sm font-semibold uppercase tracking-[0.3em] text-brand-600">Join the platform</p>
-        <h1 className="mt-3 text-3xl font-semibold text-ink-900">Create your EduForge account</h1>
-        <p className="mt-3 text-sm text-ink-500">Build your learning path across courses, content, and assessments.</p>
-      </div>
+    <div className="surface p-8 sm:p-9">
+      <header className="space-y-2">
+        <p className="eyebrow">Join the platform</p>
+        <h1 className="text-headline text-content">Create your EduForge account</h1>
+        <p className="section-subtitle">
+          Build your learning path across courses, content and assessments.
+        </p>
+      </header>
 
-      <form onSubmit={handleSubmit} className="space-y-6 px-8 py-8">
-        <div className="space-y-2">
-          <label htmlFor="name" className="text-sm font-medium text-ink-700">Full name</label>
-          <input id="name" value={form.name} onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))} required />
+      <form onSubmit={handleSubmit} className="mt-8 space-y-5" noValidate>
+        <div className="space-y-1.5">
+          <label htmlFor="name" className="block text-sm font-semibold text-content">
+            Full name
+          </label>
+          <input
+            id="name"
+            placeholder="Ada Lovelace"
+            value={form.name}
+            onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))}
+            required
+          />
         </div>
 
-        <div className="space-y-2">
-          <label htmlFor="email" className="text-sm font-medium text-ink-700">Email address</label>
-          <input id="email" type="email" autoComplete="email" value={form.email} onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))} required />
+        <div className="space-y-1.5">
+          <label htmlFor="email" className="block text-sm font-semibold text-content">
+            Email address
+          </label>
+          <input
+            id="email"
+            type="email"
+            autoComplete="email"
+            placeholder="you@example.com"
+            value={form.email}
+            onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))}
+            required
+          />
         </div>
 
-        <div className="space-y-2">
-          <label htmlFor="password" className="text-sm font-medium text-ink-700">Password</label>
-          <input id="password" type="password" autoComplete="new-password" value={form.password} onChange={(event) => setForm((current) => ({ ...current, password: event.target.value }))} minLength={8} required />
-        </div>
+        <PasswordField
+          id="password"
+          label="Password"
+          value={form.password}
+          onChange={(value) => setForm((current) => ({ ...current, password: value }))}
+          autoComplete="new-password"
+          hint="At least 8 characters."
+        />
 
-        <div className="space-y-2">
-          <label htmlFor="role" className="text-sm font-medium text-ink-700">Role</label>
-          <select id="role" value={form.role} onChange={(event) => setForm((current) => ({ ...current, role: event.target.value as User['role'] }))}>
-            <option value="student">Student</option>
-            <option value="instructor">Instructor</option>
-          </select>
-        </div>
+        {/* Role picker — segmented cards instead of a bare <select>. */}
+        <fieldset className="space-y-2">
+          <legend className="mb-2 block text-sm font-semibold text-content">I am joining as</legend>
+          <div className="grid grid-cols-2 gap-3">
+            {ROLES.map((role) => {
+              const selected = form.role === role.value;
+              return (
+                <label
+                  key={role.value}
+                  className={`cursor-pointer rounded-xl border p-3.5 transition duration-200 ${
+                    selected
+                      ? 'border-brand-500 bg-brand-50 ring-2 ring-brand-500/25 dark:bg-brand-500/10'
+                      : 'border-hairline bg-surface hover:border-brand-300'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="role"
+                    value={role.value}
+                    checked={selected}
+                    onChange={() => setForm((current) => ({ ...current, role: role.value }))}
+                    className="sr-only"
+                  />
+                  <span
+                    className={`block text-sm font-bold ${selected ? 'text-brand-700 dark:text-brand-300' : 'text-content'}`}
+                  >
+                    {role.label}
+                  </span>
+                  <span className="mt-0.5 block text-xs text-content-subtle">{role.description}</span>
+                </label>
+              );
+            })}
+          </div>
+        </fieldset>
 
-        {error ? <p className="text-sm text-rose-600">{error}</p> : null}
-        {message ? <p className="text-sm text-emerald-600">{message}</p> : null}
+        {error ? (
+          <div
+            role="alert"
+            className="flex items-start gap-2.5 rounded-xl border border-danger-500/25 bg-danger-50 px-3.5 py-3 text-sm text-danger-600 dark:bg-danger-500/10"
+          >
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="mt-px shrink-0" aria-hidden="true">
+              <circle cx="12" cy="12" r="9" />
+              <path d="M12 8v4.5M12 16h.01" />
+            </svg>
+            <span>{error}</span>
+          </div>
+        ) : null}
 
-        <button type="submit" className="primary-button w-full" disabled={loading}>
-          {loading ? 'Creating account…' : 'Register'}
+        {message ? (
+          <div
+            role="status"
+            className="flex items-start gap-2.5 rounded-xl border border-success-500/25 bg-success-50 px-3.5 py-3 text-sm text-success-600 dark:bg-success-500/10"
+          >
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round" className="mt-px shrink-0" aria-hidden="true">
+              <path d="m20 6-11 11-5-5" />
+            </svg>
+            <span>{message}</span>
+          </div>
+        ) : null}
+
+        <button type="submit" className="primary-button w-full py-3" disabled={loading}>
+          {loading ? (
+            <>
+              <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="3" className="opacity-25" />
+                <path d="M21 12a9 9 0 0 0-9-9" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+              </svg>
+              Creating account…
+            </>
+          ) : (
+            'Create account'
+          )}
         </button>
 
-        <p className="text-center text-sm text-ink-500">
-          Already have an account? <Link href="/login" className="font-medium text-brand-600 hover:text-brand-700">Sign in</Link>
+        <p className="text-center text-sm text-content-subtle">
+          Already have an account?{' '}
+          <Link href="/login" className="font-semibold text-brand-600 transition hover:text-brand-700">
+            Sign in
+          </Link>
         </p>
       </form>
     </div>

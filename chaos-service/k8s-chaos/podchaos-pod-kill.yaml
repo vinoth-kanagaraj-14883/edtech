@@ -1,0 +1,16 @@
+apiVersion: chaos-mesh.org/v1alpha1
+kind: PodChaos
+metadata:
+  name: chaos-pod-kill-api-gateway
+  namespace: edtech
+spec:
+  action: pod-kill
+  mode: one
+  duration: "30s"
+  selector:
+    namespaces:
+      - edtech
+    labelSelectors:
+      app: api-gateway
+  scheduler:
+    cron: "@every 2m"

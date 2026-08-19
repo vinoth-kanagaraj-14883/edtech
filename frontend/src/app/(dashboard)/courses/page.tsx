@@ -41,91 +41,127 @@ export default async function CoursesPage({ searchParams }: CoursesPageProps) {
   return (
     <div className="space-y-10">
       {/* Header */}
-      <section className="flex flex-wrap items-end justify-between gap-4 border-b border-ink-300/60 pb-6">
+      <header className="page-header sm:flex-row sm:items-end sm:justify-between">
         <div className="space-y-2">
-          <p className="text-sm font-bold uppercase tracking-[0.16em] text-brand-600">
-            {isInstructor ? 'Instructor workspace' : 'Course catalog'}
-          </p>
-          <h1 className="text-3xl font-extrabold tracking-tight text-ink-900 sm:text-4xl">
+          <p className="eyebrow">{isInstructor ? 'Instructor workspace' : 'Course catalog'}</p>
+          <h1 className="text-headline text-content">
             {isInstructor ? 'Manage your courses' : 'Explore your next learning path'}
           </h1>
-          <p className="max-w-3xl text-ink-700">
+          <p className="section-subtitle max-w-3xl">
             {isInstructor
               ? 'Create new courses, edit existing content, and see what every student can browse and enroll in.'
               : 'Search the full library, filter by level, and jump back into what matters most.'}
           </p>
         </div>
         {isInstructor ? (
-          <Link href="/courses/create" className="primary-button whitespace-nowrap">
-            + Create course
+          <Link href="/courses/create" className="primary-button self-start whitespace-nowrap sm:self-auto">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" aria-hidden="true">
+              <path d="M12 5v14M5 12h14" />
+            </svg>
+            Create course
           </Link>
         ) : null}
-      </section>
+      </header>
 
       {/* Instructor's own courses */}
       {isInstructor ? (
-        <section className="space-y-4">
-          <h2 className="section-title">Your courses</h2>
+        <section className="space-y-5" aria-labelledby="my-courses-heading">
+          <h2 id="my-courses-heading" className="section-title">
+            Your courses
+          </h2>
           {myCourses.length > 0 ? (
-            <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
+            <div className="stagger grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
               {myCourses.map((course) => (
                 <CourseCard key={course.id} course={course} currentUserId={user.id} currentUserRole={user.role} />
               ))}
             </div>
           ) : (
-            <div className="surface p-8 text-sm text-ink-700">
-              You haven&apos;t created any courses yet. Use the &quot;Create course&quot; button above to publish your first one.
+            <div className="surface flex flex-col items-center gap-4 px-6 py-12 text-center">
+              <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-50 text-brand-600 ring-1 ring-inset ring-brand-200 dark:bg-brand-500/12 dark:text-brand-300 dark:ring-brand-400/25">
+                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M12 5v14M5 12h14" />
+                </svg>
+              </span>
+              <div className="space-y-1.5">
+                <h3 className="text-lg font-bold text-content">No courses yet</h3>
+                <p className="section-subtitle mx-auto max-w-sm">
+                  Publish your first course to start reaching learners.
+                </p>
+              </div>
+              <Link href="/courses/create" className="primary-button">
+                Create your first course
+              </Link>
             </div>
           )}
         </section>
       ) : null}
 
       {/* Filter bar */}
-      <section className="rounded-lg border border-ink-300/60 bg-muted p-5">
-        <form className="grid gap-4 md:grid-cols-[minmax(0,1fr)_220px_auto]">
+      <section className="surface p-4 sm:p-5" aria-label="Filter courses">
+        <form className="grid gap-3 md:grid-cols-[minmax(0,1fr)_200px_auto]">
           <div className="relative">
-            <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-ink-500">
-              <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2">
+            <label htmlFor="course-search" className="sr-only">
+              Search courses
+            </label>
+            <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-content-subtle">
+              <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
                 <circle cx="9" cy="9" r="6" />
                 <path d="m14 14 4 4" strokeLinecap="round" />
               </svg>
             </span>
             <input
+              id="course-search"
               name="search"
               defaultValue={search}
               placeholder="Search by title, category, or instructor"
-              className="pl-11"
+              className="pl-10"
             />
           </div>
-          <select name="level" defaultValue={level}>
-            {LEVELS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
+          <div>
+            <label htmlFor="course-level" className="sr-only">
+              Filter by level
+            </label>
+            <select id="course-level" name="level" defaultValue={level}>
+              {LEVELS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </div>
           <button type="submit" className="primary-button w-full md:w-auto">
-            Apply filters
+            Apply
           </button>
         </form>
       </section>
 
       {error ? (
-        <div className="rounded-lg border border-rose-300 bg-rose-50 p-6 text-sm text-rose-700">{error}</div>
+        <div
+          role="alert"
+          className="flex items-start gap-2.5 rounded-xl border border-danger-500/25 bg-danger-50 px-4 py-3.5 text-sm text-danger-600 dark:bg-danger-500/10"
+        >
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="mt-px shrink-0" aria-hidden="true">
+            <circle cx="12" cy="12" r="9" />
+            <path d="M12 8v4.5M12 16h.01" />
+          </svg>
+          <span>{error}</span>
+        </div>
       ) : null}
 
       {/* Results */}
-      <section className="space-y-5">
-        <div className="flex items-center justify-between">
-          <h2 className="section-title">{isInstructor ? 'Full catalog' : 'All courses'}</h2>
-          <p className="text-sm text-ink-500">
+      <section className="space-y-5" aria-labelledby="results-heading">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 id="results-heading" className="section-title">
+            {isInstructor ? 'Full catalog' : 'All courses'}
+          </h2>
+          <p className="chip">
             {courses.length} {courses.length === 1 ? 'result' : 'results'}
             {search ? ` for “${search}”` : ''}
           </p>
         </div>
 
         {courses.length > 0 ? (
-          <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="stagger grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
             {courses.map((course) => (
               <CourseCard
                 key={course.id}
@@ -137,8 +173,22 @@ export default async function CoursesPage({ searchParams }: CoursesPageProps) {
             ))}
           </div>
         ) : (
-          <div className="surface p-8 text-sm text-ink-700">
-            No courses matched your current search. Try another keyword or filter.
+          <div className="surface flex flex-col items-center gap-4 px-6 py-14 text-center">
+            <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-muted text-content-subtle ring-1 ring-inset ring-hairline">
+              <svg width="26" height="26" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true">
+                <circle cx="9" cy="9" r="6" />
+                <path d="m14 14 4 4" strokeLinecap="round" />
+              </svg>
+            </span>
+            <div className="space-y-1.5">
+              <h3 className="text-lg font-bold text-content">No courses found</h3>
+              <p className="section-subtitle mx-auto max-w-sm">
+                No courses matched your current search. Try another keyword or filter.
+              </p>
+            </div>
+            <Link href="/courses" className="secondary-button">
+              Clear filters
+            </Link>
           </div>
         )}
       </section>

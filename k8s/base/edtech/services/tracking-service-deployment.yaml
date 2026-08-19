@@ -1,0 +1,114 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tracking-service
+  namespace: edtech
+  labels:
+    app: tracking-service
+    version: v1
+    component: service
+    part-of: edtech
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: tracking-service
+  template:
+    metadata:
+      labels:
+        app: tracking-service
+        version: v1
+        component: service
+        part-of: edtech
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8008"
+        prometheus.io/path: "/metrics"
+    spec:
+      containers:
+        - name: tracking-service
+          image: edtech/tracking-service:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8008
+          envFrom:
+            - configMapRef:
+                name: app-config
+          env:
+            - name: PORT
+              value: "8008"
+            - name: DB_HOST
+              value: mysql.edtech.svc.cluster.local
+            - name: DB_PORT
+              value: "3306"
+            - name: DB_NAME
+              value: tracking_service
+            - name: DB_USER
+              value: tracking_service
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: app-secrets
+                  key: TRACKING_DB_PASSWORD
+            - name: REDIS_URL
+              value: redis://redis.edtech.svc.cluster.local:6379
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: app-secrets
+                  key: REDIS_PASSWORD
+            - name: CONTENT_SERVICE_URL
+              value: http://content-service.edtech.svc.cluster.local:8003
+            - name: COURSE_SERVICE_URL
+              value: http://course-service.edtech.svc.cluster.local:8002
+            - name: CERTIFICATION_SERVICE_URL
+              value: http://certification-service.edtech.svc.cluster.local:8009
+            - name: NOTIFICATION_SERVICE_URL
+              value: http://notification-service.edtech.svc.cluster.local:8005
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: http://otel-collector.monitoring.svc.cluster.local:4318
+            - name: OTEL_EXPORTER_OTLP_PROTOCOL
+              value: http/protobuf
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 20
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 6
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 6
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: tracking-service
+  namespace: edtech
+  labels:
+    app: tracking-service
+    version: v1
+    component: service
+    part-of: edtech
+spec:
+  type: ClusterIP
+  selector:
+    app: tracking-service
+  ports:
+    - name: http
+      port: 8008
+      targetPort: http

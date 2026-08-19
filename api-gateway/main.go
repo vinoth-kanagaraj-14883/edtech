@@ -181,6 +181,15 @@ func main() {
 	router.Use(rateLimitMiddleware(NewRedisRateLimiter(redisClient, requestsPerMinute, time.Minute), logger))
 	router.Use(retryBufferMiddleware(2 << 20))
 
+	// Chaos injection. Polls the shared Redis chaos-flag contract and applies
+	// gateway-wide faults here, plus per-upstream faults for services that do
+	// not self-inject (see chaos.go).
+	chaosCtx, cancelChaos := context.WithCancel(context.Background())
+	defer cancelChaos()
+	chaosController := NewChaosController(redisClient)
+	chaosController.Start(chaosCtx)
+	router.Use(gatewayChaosMiddleware(chaosController))
+
 	router.GET("/health", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"status": "ok"})
 	})
@@ -198,7 +207,7 @@ func main() {
 	router.GET("/metrics", gin.WrapH(promhttp.Handler()))
 
 	for service, target := range config.Upstreams {
-		if err := registerServiceRoutes(router, service, target, config, logger); err != nil {
+		if err := registerServiceRoutes(router, service, target, config, logger, chaosController); err != nil {
 			logger.Fatal("failed to register upstream service", zap.String("service", service), zap.Error(err))
 		}
 	}
@@ -268,6 +277,9 @@ func loadConfig() Config {
 			"quizzes":       getEnv("QUIZ_SERVICE_URL", "http://quiz-service:8004"),
 			"notifications": getEnv("NOTIFICATION_SERVICE_URL", "http://notification-service:8005"),
 			"search":        getEnv("SEARCH_SERVICE_URL", "http://search-service:8006"),
+			"payments":      getEnv("PAYMENT_SERVICE_URL", "http://payment-service:8007"),
+			"tracking":      getEnv("TRACKING_SERVICE_URL", "http://tracking-service:8008"),
+			"certificates":  getEnv("CERTIFICATION_SERVICE_URL", "http://certification-service:8009"),
 		},
 	}
 }
@@ -363,7 +375,7 @@ type routePrefix struct {
 	upstreamBase  string
 }
 
-func registerServiceRoutes(router *gin.Engine, serviceName, rawURL string, config Config, logger *zap.Logger) error {
+func registerServiceRoutes(router *gin.Engine, serviceName, rawURL string, config Config, logger *zap.Logger, chaos *ChaosController) error {
 	target, err := url.Parse(rawURL)
 	if err != nil {
 		return fmt.Errorf("parse target url: %w", err)
@@ -372,8 +384,17 @@ func registerServiceRoutes(router *gin.Engine, serviceName, rawURL string, confi
 	breaker := NewCircuitBreaker(config.CircuitFailureThreshold, config.CircuitHalfOpenSuccess, config.CircuitOpenTimeout)
 	proxy := newReverseProxy(serviceName, target, breaker, logger, config)
 
+	// Services written in runtimes without an in-service chaos hook (Java, Ruby)
+	// or that predate it have their faults injected here, on the proxy hop, so a
+	// chaos flag still degrades their request path and RED metrics.
+	chaosService := upstreamToChaosService[serviceName]
+	injectHere := chaos != nil && gatewayInjectedServices[chaosService]
+
 	makeHandler := func(upstreamBase string) gin.HandlerFunc {
 		return func(c *gin.Context) {
+			if injectHere && chaos.apply(c, chaosService) {
+				return
+			}
 			proxyPath := c.Param("proxyPath")
 			outPath := upstreamBase + proxyPath
 			if outPath == "" {
@@ -442,6 +463,24 @@ func servicePrefixes(service string) []routePrefix {
 			{gatewayPrefix: "/search", upstreamBase: "/search"},
 			{gatewayPrefix: "/api/search", upstreamBase: "/search"},
 			{gatewayPrefix: "/api/v1/search", upstreamBase: "/search"},
+		}
+	case "payments":
+		return []routePrefix{
+			{gatewayPrefix: "/payments", upstreamBase: "/payments"},
+			{gatewayPrefix: "/api/payments", upstreamBase: "/payments"},
+			{gatewayPrefix: "/api/v1/payments", upstreamBase: "/payments"},
+		}
+	case "tracking":
+		return []routePrefix{
+			{gatewayPrefix: "/tracking", upstreamBase: "/tracking"},
+			{gatewayPrefix: "/api/tracking", upstreamBase: "/tracking"},
+			{gatewayPrefix: "/api/v1/tracking", upstreamBase: "/tracking"},
+		}
+	case "certificates":
+		return []routePrefix{
+			{gatewayPrefix: "/certificates", upstreamBase: "/certificates"},
+			{gatewayPrefix: "/api/certificates", upstreamBase: "/certificates"},
+			{gatewayPrefix: "/api/v1/certificates", upstreamBase: "/certificates"},
 		}
 	default:
 		return []routePrefix{
@@ -1040,7 +1079,23 @@ func shouldSkipSecurity(path string) bool {
 	if path == "/health" || path == "/ready" || path == "/metrics" {
 		return true
 	}
-	return isPublicAuthPath(path) || isPublicQuizPreviewPath(path) || isPublicSearchPath(path)
+	return isPublicAuthPath(path) || isPublicQuizPreviewPath(path) || isPublicSearchPath(path) || isPublicCertificateVerifyPath(path)
+}
+
+// isPublicCertificateVerifyPath reports whether the request targets the public
+// certificate-verification endpoint. A certificate holder shares a verify URL
+// (e.g. with an employer) who must be able to confirm authenticity without an
+// EduForge account, so GET /certificates/{id}/verify is served anonymously.
+// The downstream certification-service returns only non-sensitive attestation
+// fields (validity, certificate number, learner name, course title, issue date).
+func isPublicCertificateVerifyPath(path string) bool {
+	trimmed := strings.TrimRight(path, "/")
+	if !strings.HasSuffix(trimmed, "/verify") {
+		return false
+	}
+	return strings.HasPrefix(trimmed, "/certificates/") ||
+		strings.HasPrefix(trimmed, "/api/certificates/") ||
+		strings.HasPrefix(trimmed, "/api/v1/certificates/")
 }
 
 // isPublicAuthPath reports whether the request targets an authentication

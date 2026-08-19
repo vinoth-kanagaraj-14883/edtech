@@ -1,0 +1,18 @@
+apiVersion: chaos-mesh.org/v1alpha1
+kind: NetworkChaos
+metadata:
+  name: chaos-latency-course
+  namespace: edtech
+spec:
+  action: delay
+  mode: all
+  duration: "120s"
+  selector:
+    namespaces:
+      - edtech
+    labelSelectors:
+      app: course-service
+  delay:
+    latency: "300ms"
+    correlation: "50"
+    jitter: "100ms"

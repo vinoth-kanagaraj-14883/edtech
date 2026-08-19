@@ -13,21 +13,26 @@ export default function QuizQuestion({ question, selectedAnswer, index, onChange
   const options = question.type === 'true_false' && question.options.length === 0 ? ['True', 'False'] : question.options;
 
   return (
-    <div className="surface space-y-5 p-6">
+    <fieldset className="surface space-y-5 p-6">
+      <legend className="sr-only">Question {index + 1}</legend>
       <div className="space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-[0.3em] text-brand-600">Question {index + 1}</p>
-        <h3 className="text-lg font-semibold text-ink-900">{question.prompt}</h3>
+        <p className="eyebrow">Question {index + 1}</p>
+        <h3 className="text-lg font-bold leading-snug tracking-tight text-content">{question.prompt}</h3>
       </div>
 
       {options.length > 0 ? (
-        <div className="space-y-3">
-          {options.map((option) => {
+        <div className="space-y-2.5">
+          {options.map((option, optionIndex) => {
             const checked = selectedAnswer === option;
 
             return (
               <label
                 key={option}
-                className={`flex cursor-pointer items-center gap-3 rounded-xl border px-4 py-3 text-sm transition ${checked ? 'border-brand-500 bg-brand-50 text-ink-900' : 'border-ink-300/60 bg-white text-ink-700 hover:border-brand-400'}`}
+                className={`flex cursor-pointer items-center gap-3 rounded-xl border px-4 py-3.5 text-sm transition duration-200 ${
+                  checked
+                    ? 'border-brand-500 bg-brand-50 text-content ring-2 ring-brand-500/25 dark:bg-brand-500/10'
+                    : 'border-hairline bg-surface text-content-muted hover:-translate-y-0.5 hover:border-brand-300'
+                }`}
               >
                 <input
                   type="radio"
@@ -35,22 +40,44 @@ export default function QuizQuestion({ question, selectedAnswer, index, onChange
                   value={option}
                   checked={checked}
                   onChange={() => onChange(question.id, option)}
-                  className="h-4 w-4 accent-cyan-400"
+                  className="sr-only"
                 />
-                <span>{option}</span>
+                {/* Letter marker doubles as the selection indicator. */}
+                <span
+                  aria-hidden="true"
+                  className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-xs font-bold transition ${
+                    checked
+                      ? 'bg-brand-600 text-white'
+                      : 'bg-muted text-content-subtle ring-1 ring-inset ring-hairline'
+                  }`}
+                >
+                  {checked ? (
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="m20 6-11 11-5-5" />
+                    </svg>
+                  ) : (
+                    String.fromCharCode(65 + optionIndex)
+                  )}
+                </span>
+                <span className="font-medium">{option}</span>
               </label>
             );
           })}
         </div>
       ) : (
-        <input
-          type="text"
-          value={selectedAnswer ?? ''}
-          onChange={(event) => onChange(question.id, event.target.value)}
-          placeholder="Type your answer…"
-          className="w-full rounded-md border border-ink-300 bg-white px-4 py-3 text-sm text-ink-900 placeholder:text-ink-500"
-        />
+        <div>
+          <label htmlFor={`answer-${question.id}`} className="sr-only">
+            Your answer
+          </label>
+          <input
+            id={`answer-${question.id}`}
+            type="text"
+            value={selectedAnswer ?? ''}
+            onChange={(event) => onChange(question.id, event.target.value)}
+            placeholder="Type your answer…"
+          />
+        </div>
       )}
-    </div>
+    </fieldset>
   );
 }

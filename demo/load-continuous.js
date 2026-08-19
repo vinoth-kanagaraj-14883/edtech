@@ -70,9 +70,24 @@ export default function () {
   const authOpts = tag('browse');
   if (token) authOpts.headers['Authorization'] = `Bearer ${token}`;
 
+  // Authenticated JSON opts for POSTs that need the bearer token + a body.
+  function authJson(name) {
+    const o = tag(name);
+    o.headers['Content-Type'] = 'application/json';
+    if (token) o.headers['Authorization'] = `Bearer ${token}`;
+    return o;
+  }
+
+  let courseId = '';
+
   group('02_browse_courses', function () {
     const r = http.get(`${BASE}/api/courses`, authOpts);
     check(r, { 'courses listed': (r) => r.status < 500 }) || errorRate.add(1);
+    try {
+      const body = r.json();
+      const list = (body && (body.courses || body.content || body.items)) || [];
+      if (list.length) courseId = list[Math.floor(Math.random() * list.length)].id;
+    } catch (_) { /* ignore during fault injection */ }
     sleep(Math.random() * 1.5);
   });
 
@@ -97,6 +112,37 @@ export default function () {
     const r = http.get(`${BASE}/api/notifications`, tag('notify'));
     check(r, { 'notifications ok': (r) => r.status < 500 }) || errorRate.add(1);
   });
+
+  // 06 -> 08 exercise the revamped services so their service-map edges stay
+  // populated: payment-service (-> course, notification), tracking-service
+  // (-> content, certification, notification) and certification-service
+  // (-> user, course, notification). Only runs when a course id was discovered.
+  if (token && courseId) {
+    group('06_enroll_pay', function () {
+      const pay = http.post(`${BASE}/api/payments`,
+        JSON.stringify({ courseId, amount: 49.99, currency: 'USD', method: 'card' }),
+        authJson('payment'));
+      check(pay, { 'payment handled': (r) => r.status !== 0 }) || errorRate.add(1);
+      sleep(Math.random());
+    });
+
+    group('07_track_progress', function () {
+      // A couple of lesson completions feed progress + completion detection.
+      for (let i = 0; i < 2; i++) {
+        http.post(`${BASE}/api/tracking/events`,
+          JSON.stringify({ courseId, type: 'lesson_completed', refId: `lesson-${i}` }),
+          authJson('tracking'));
+      }
+      const prog = http.get(`${BASE}/api/tracking/users/me/courses/${courseId}`, tag('tracking'));
+      check(prog, { 'progress ok': (r) => r.status < 500 }) || errorRate.add(1);
+    });
+
+    group('08_certificate', function () {
+      const cert = http.post(`${BASE}/api/certificates`,
+        JSON.stringify({ courseId }), authJson('certificate'));
+      check(cert, { 'certificate handled': (r) => r.status !== 0 }) || errorRate.add(1);
+    });
+  }
 
   sleep(1 + Math.random());
 }

@@ -1,4 +1,8 @@
 CREATE DATABASE userdb OWNER edtech;
 CREATE DATABASE coursedb OWNER edtech;
+CREATE DATABASE paymentdb OWNER edtech;
+CREATE DATABASE certificationdb OWNER edtech;
 GRANT ALL PRIVILEGES ON DATABASE userdb TO edtech;
 GRANT ALL PRIVILEGES ON DATABASE coursedb TO edtech;
+GRANT ALL PRIVILEGES ON DATABASE paymentdb TO edtech;
+GRANT ALL PRIVILEGES ON DATABASE certificationdb TO edtech;

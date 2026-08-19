@@ -6,26 +6,36 @@ interface InterviewSectionProps {
 
 export default function InterviewSection({ interviews }: InterviewSectionProps) {
   return (
-    <section className="space-y-6">
-      <div>
-        <p className="text-sm font-semibold uppercase tracking-[0.3em] text-forge-400">Industry voices</p>
-        <h2 className="mt-2 text-3xl font-semibold text-ink-900">Interviews with practitioners</h2>
-      </div>
+    <section className="py-12 sm:py-16" aria-labelledby="interviews-heading">
+      <header className="max-w-2xl">
+        <p className="eyebrow">Industry voices</p>
+        <h2 id="interviews-heading" className="section-title mt-3">
+          Interviews with practitioners
+        </h2>
+        <p className="section-subtitle mt-3">
+          Real perspectives from people building and shipping in the field.
+        </p>
+      </header>
 
-      <div className="grid gap-6 md:grid-cols-2">
+      <div className="stagger mt-10 grid gap-6 md:grid-cols-2">
         {interviews.map((interview) => (
-          <article key={interview.id} className="surface flex gap-5 p-6">
-            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-forge-gradient text-lg font-semibold text-white">
+          <article key={interview.id} className="surface-hover flex gap-5 p-6">
+            <div
+              className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-brand-gradient text-lg font-bold text-white shadow-glow"
+              aria-hidden="true"
+            >
               {interview.name
                 .split(' ')
                 .map((part) => part[0])
                 .join('')}
             </div>
-            <div className="space-y-2">
-              <p className="text-base font-semibold text-ink-900">{interview.name}</p>
-              <p className="text-xs uppercase tracking-[0.2em] text-ink-500">{interview.title}</p>
-              <p className="text-sm font-medium text-forge-600">{interview.topic}</p>
-              <p className="text-sm text-ink-700">{interview.summary}</p>
+            <div className="min-w-0 space-y-1.5">
+              <p className="text-base font-bold tracking-tight text-content">{interview.name}</p>
+              <p className="text-xs font-medium uppercase tracking-[0.14em] text-content-subtle">{interview.title}</p>
+              <p className="pt-0.5">
+                <span className="chip-brand">{interview.topic}</span>
+              </p>
+              <p className="pt-1 text-sm leading-relaxed text-content-muted">{interview.summary}</p>
             </div>
           </article>
         ))}

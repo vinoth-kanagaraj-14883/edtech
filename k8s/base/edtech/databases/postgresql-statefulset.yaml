@@ -93,6 +93,12 @@ spec:
                 IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'course_service') THEN
                   CREATE ROLE course_service LOGIN PASSWORD '${COURSE_DB_PASSWORD}';
                 END IF;
+                IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'payment_service') THEN
+                  CREATE ROLE payment_service LOGIN PASSWORD '${PAYMENT_DB_PASSWORD}';
+                END IF;
+                IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'certification_service') THEN
+                  CREATE ROLE certification_service LOGIN PASSWORD '${CERTIFICATION_DB_PASSWORD}';
+                END IF;
               END
               $$;
 
@@ -100,6 +106,10 @@ spec:
               WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'user_service')\gexec
               SELECT 'CREATE DATABASE course_service OWNER course_service'
               WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'course_service')\gexec
+              SELECT 'CREATE DATABASE payment_service OWNER payment_service'
+              WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'payment_service')\gexec
+              SELECT 'CREATE DATABASE certification_service OWNER certification_service'
+              WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'certification_service')\gexec
               SQL
               chmod +x /initdb/01-create-databases.sh
               EOF
@@ -134,6 +144,16 @@ spec:
                 secretKeyRef:
                   name: app-secrets
                   key: COURSE_DB_PASSWORD
+            - name: PAYMENT_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: app-secrets
+                  key: PAYMENT_DB_PASSWORD
+            - name: CERTIFICATION_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: app-secrets
+                  key: CERTIFICATION_DB_PASSWORD
           ports:
             - name: postgres
               containerPort: 5432

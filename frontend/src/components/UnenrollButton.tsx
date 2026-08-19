@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
+import { ErrorAlert, Spinner } from '@/components/Feedback';
 import { unenrollFromCourse } from '@/lib/api';
 
 interface UnenrollButtonProps {
@@ -33,16 +34,23 @@ export default function UnenrollButton({ courseId, className }: UnenrollButtonPr
   };
 
   return (
-    <div className="flex flex-col items-end gap-1">
+    <div className="flex flex-col items-end gap-2">
       <button
         type="button"
         onClick={handleUnenroll}
         disabled={loading}
-        className={className ?? 'text-xs font-medium text-rose-600 hover:text-rose-700'}
+        className={className ?? 'danger-button px-3 py-1.5 text-xs'}
       >
-        {loading ? 'Removing…' : 'Unenroll'}
+        {loading ? (
+          <>
+            <Spinner className="h-3.5 w-3.5" />
+            Removing…
+          </>
+        ) : (
+          'Unenroll'
+        )}
       </button>
-      {error ? <p className="text-xs text-rose-600">{error}</p> : null}
+      {error ? <ErrorAlert>{error}</ErrorAlert> : null}
     </div>
   );
 }

@@ -14,5 +14,9 @@ resources:
   - services/content-service-deployment.yaml
   - services/quiz-service-deployment.yaml
   - services/notification-service-deployment.yaml
+  - services/payment-service-deployment.yaml
+  - services/tracking-service-deployment.yaml
+  - services/certification-service-deployment.yaml
   - services/frontend-deployment.yaml
+  - chaos-service.yaml
   - hpa/hpa.yaml

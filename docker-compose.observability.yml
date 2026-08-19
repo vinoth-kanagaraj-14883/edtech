@@ -35,6 +35,27 @@ services:
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
       OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
 
+  payment-service:
+    environment:
+      # Python gRPC exporter -> collector gRPC port 4317
+      OTEL_EXPORTER_OTLP_ENDPOINT: otel-collector:4317
+
+  tracking-service:
+    environment:
+      # Node OTLP HTTP exporter -> collector HTTP port 4318
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+      OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
+
+  certification-service:
+    environment:
+      # Python gRPC exporter -> collector gRPC port 4317
+      OTEL_EXPORTER_OTLP_ENDPOINT: otel-collector:4317
+
+  chaos-service:
+    environment:
+      # Python gRPC exporter -> collector gRPC port 4317
+      OTEL_EXPORTER_OTLP_ENDPOINT: otel-collector:4317
+
   frontend:
     environment:
       # Consumed SERVER-SIDE by the Next.js proxy route

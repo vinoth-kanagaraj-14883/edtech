@@ -8,6 +8,7 @@ import express from 'express';
 import { v4 as uuidv4 } from 'uuid';
 
 import { AppDataSource } from './database';
+import { chaosMiddleware, startChaosPolling, stopChaos } from './chaos';
 import { logger } from './logger';
 import { metricsMiddleware, register } from './metrics';
 import { Content, ContentType } from './models/Content';
@@ -28,6 +29,10 @@ app.use((request, response, next) => {
   next();
 });
 app.use(metricsMiddleware);
+// Chaos self-injection (latency/error) driven by Redis flags. Skips
+// /health,/ready,/metrics internally. Placed after metrics so injected
+// latency/errors are still measured.
+app.use(chaosMiddleware);
 app.use((request, response, next) => {
   const startedAt = process.hrtime.bigint();
 
@@ -122,6 +127,8 @@ const shutdown = async (signal: string, server?: ReturnType<typeof app.listen>):
       });
     });
   }
+
+  stopChaos();
 
   if (AppDataSource.isInitialized) {
     await AppDataSource.destroy();
@@ -395,6 +402,7 @@ const seedLessons = async (): Promise<void> => {
 
 
 const bootstrap = async (): Promise<void> => {
+  startChaosPolling();
   await AppDataSource.initialize();
   logger.info('database connection initialized', {
     host: process.env.DB_HOST ?? 'mysql',
