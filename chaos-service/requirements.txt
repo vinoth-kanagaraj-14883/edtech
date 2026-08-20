@@ -2,6 +2,9 @@ fastapi==0.104.1
 uvicorn[standard]==0.24.0
 redis==5.0.1
 kubernetes==29.0.0
+# Used to talk to the Docker Engine API over the mounted unix socket
+# (docker_chaos.py). Preferred over the `docker` SDK to keep the image small.
+httpx==0.25.2
 structlog==23.2.0
 opentelemetry-sdk==1.21.0
 opentelemetry-exporter-otlp-proto-grpc==1.21.0

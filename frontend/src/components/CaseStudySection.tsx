@@ -89,7 +89,7 @@ export default function CaseStudySection({ studies }: CaseStudySectionProps) {
                 </svg>
                 {study.outcome}
               </p>
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-success-50 px-3 py-1 text-xs font-bold text-success-600 ring-1 ring-inset ring-success-500/25 dark:bg-success-500/12">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-success-50 px-3 py-1 text-xs font-bold text-success-600 ring-1 ring-inset ring-success-500/25 dark:bg-success-500/10">
                 <svg
                   className="h-4 w-4"
                   viewBox="0 0 24 24"

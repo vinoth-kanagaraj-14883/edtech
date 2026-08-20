@@ -68,7 +68,7 @@ export default function CurriculumAccordion({ courseId, lessons }: CurriculumAcc
                     aria-hidden="true"
                     className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg transition ${
                       lesson.completed
-                        ? 'bg-success-50 text-success-600 dark:bg-success-500/12'
+                        ? 'bg-success-50 text-success-600 dark:bg-success-500/10'
                         : 'bg-muted text-content-subtle ring-1 ring-inset ring-hairline group-hover:text-brand-600'
                     }`}
                   >

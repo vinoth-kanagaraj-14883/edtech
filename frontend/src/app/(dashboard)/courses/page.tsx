@@ -77,7 +77,7 @@ export default async function CoursesPage({ searchParams }: CoursesPageProps) {
             </div>
           ) : (
             <div className="surface flex flex-col items-center gap-4 px-6 py-12 text-center">
-              <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-50 text-brand-600 ring-1 ring-inset ring-brand-200 dark:bg-brand-500/12 dark:text-brand-300 dark:ring-brand-400/25">
+              <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-50 text-brand-600 ring-1 ring-inset ring-brand-200 dark:bg-brand-500/10 dark:text-brand-300 dark:ring-brand-400/25">
                 <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                   <path d="M12 5v14M5 12h14" />
                 </svg>

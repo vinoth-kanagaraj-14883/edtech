@@ -2,20 +2,25 @@ FROM python:3.11-slim AS builder
 
 ENV PYTHONDONTWRITEBYTECODE=1     PYTHONUNBUFFERED=1     PIP_NO_CACHE_DIR=1     VENV_PATH=/opt/venv
 
-RUN apt-get update     && apt-get install --yes --no-install-recommends build-essential libpq-dev     && rm -rf /var/lib/apt/lists/*
-
+# NOTE: no apt-get here on purpose. psycopg2-binary bundles libpq, and
+# cryptography / bcrypt==4.0.1 / pydantic-core / uvloop all ship manylinux wheels
+# for cp311 — so no compiler or libpq-dev is required. Dropping this removes a
+# build-time dependency on the Debian mirrors, which fails behind a proxy.
 RUN python -m venv ${VENV_PATH}
 ENV PATH="${VENV_PATH}/bin:${PATH}"
 
 WORKDIR /app
 COPY requirements.txt ./
-RUN pip install --upgrade pip wheel     && pip install "setuptools<81"     && pip install -r requirements.txt     && pip install asyncpg==0.29.0
+# --only-binary=:all: fails loudly if a dependency ever stops shipping a wheel.
+RUN pip install --upgrade pip wheel     && pip install "setuptools<81"     && pip install --only-binary=:all: -r requirements.txt     && pip install --only-binary=:all: asyncpg==0.29.0
 
 FROM python:3.11-slim AS runtime
 
 ENV PYTHONDONTWRITEBYTECODE=1     PYTHONUNBUFFERED=1     VENV_PATH=/opt/venv     PATH="/opt/venv/bin:${PATH}"
 
-RUN apt-get update     && apt-get install --yes --no-install-recommends libpq5     && rm -rf /var/lib/apt/lists/*     && groupadd --system app     && useradd --system --gid app --create-home --home-dir /home/app app
+# No libpq5 needed at runtime — psycopg2-binary carries its own libpq.
+# groupadd/useradd already exist in python:3.11-slim.
+RUN groupadd --system app     && useradd --system --gid app --create-home --home-dir /home/app app
 
 WORKDIR /app
 COPY --from=builder /opt/venv /opt/venv

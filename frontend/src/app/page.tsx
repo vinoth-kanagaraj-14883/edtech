@@ -5,6 +5,7 @@ import { redirect } from 'next/navigation';
 import BlogSection from '@/components/BlogSection';
 import CaseStudySection from '@/components/CaseStudySection';
 import InterviewSection from '@/components/InterviewSection';
+import ProgressRing from '@/components/ProgressRing';
 import PublicQuizPreview from '@/components/PublicQuizPreview';
 import { getPublicQuizzes } from '@/lib/api';
 import { BLOG_POSTS, CASE_STUDIES, INTERVIEWS, pickRotating } from '@/lib/content';
@@ -93,23 +94,21 @@ export default async function HomePage() {
   return (
     <div className="space-y-4">
       {/* Hero */}
-      <section className="relative isolate overflow-hidden rounded-4xl border border-hairline bg-surface px-6 py-14 sm:px-12 sm:py-20">
-        {/* Decorative gradient mesh */}
-        <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10 bg-mesh" />
+      <section className="aurora-panel px-6 py-16 sm:px-12 sm:py-24">
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute -right-24 -top-24 -z-10 h-72 w-72 rounded-full bg-brand-400/20 blur-3xl"
+          className="pointer-events-none absolute -right-24 -top-24 -z-10 h-80 w-80 animate-glow-pulse rounded-full bg-brand-500/25 blur-3xl"
         />
 
-        <div className="grid gap-12 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
+        <div className="grid gap-12 lg:grid-cols-[1.05fr_0.95fr] lg:items-center">
           <div className="animate-fade-up space-y-7">
             <p className="eyebrow">
-              <span className="flex h-1.5 w-1.5 rounded-full bg-brand-500" aria-hidden="true" />
+              <span className="flex h-1.5 w-1.5 animate-glow-pulse rounded-full bg-brand-400" aria-hidden="true" />
               Learn. Build. Evolve.
             </p>
 
-            <h1 className="text-display-lg text-content">
-              Learn the skills that <span className="gradient-text">move your career</span> forward
+            <h1 className="text-display-xl text-content">
+              Master the skills that <span className="gradient-text">move your career</span> forward
             </h1>
 
             <p className="max-w-xl text-lg leading-relaxed text-content-muted">
@@ -118,16 +117,22 @@ export default async function HomePage() {
             </p>
 
             <div className="flex flex-wrap items-center gap-3">
-              <Link href="/register" className="primary-button px-6 py-3 text-base">
+              <Link href="/register" className="cta-button">
                 Start learning free
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                   <path d="M5 12h14M13 6l6 6-6 6" />
                 </svg>
               </Link>
-              <Link href="/courses" className="secondary-button px-6 py-3 text-base">
+              <Link href="/courses" className="secondary-button px-6 py-3.5 text-base">
                 Browse courses
               </Link>
             </div>
+            <p className="flex items-center gap-2 text-xs font-medium text-content-subtle">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-success-400" aria-hidden="true">
+                <path d="m20 6-11 11-5-5" />
+              </svg>
+              No credit card required &middot; Earn XP and certificates as you learn
+            </p>
 
             <dl className="grid grid-cols-2 gap-x-8 gap-y-5 border-t border-hairline pt-7 sm:grid-cols-4">
               {STATS.map((stat) => (
@@ -144,35 +149,88 @@ export default async function HomePage() {
             </dl>
           </div>
 
-          {/* Featured track card */}
-          <div className="relative hidden lg:block">
-            <div className="animate-float relative overflow-hidden rounded-3xl bg-brand-gradient p-8 shadow-glow-lg">
-              <div aria-hidden="true" className="pointer-events-none absolute inset-0 bg-mesh opacity-60" />
-              <div className="relative flex flex-col gap-4 text-white">
-                <span className="inline-flex w-fit items-center gap-2 rounded-full bg-white/15 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em] backdrop-blur">
-                  Featured track
-                </span>
-                <p className="text-3xl font-extrabold leading-tight tracking-tight">Cloud &amp; AI Career Path</p>
-                <p className="text-sm leading-relaxed text-white/90">
-                  A guided path from fundamentals to certification-ready, with quizzes at every step.
-                </p>
-                <ul className="mt-1 space-y-2 text-sm text-white/90">
-                  {['12 hands-on modules', 'Practice quizzes per module', 'Certificate on completion'].map((item) => (
-                    <li key={item} className="flex items-center gap-2">
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                        <path d="m20 6-11 11-5-5" />
-                      </svg>
-                      {item}
-                    </li>
-                  ))}
-                </ul>
-                <Link
-                  href="/register"
-                  className="mt-3 inline-flex w-fit items-center justify-center gap-2 rounded-xl bg-white px-5 py-2.5 text-sm font-bold text-brand-700 shadow-sm transition hover:-translate-y-0.5 hover:bg-white/95"
-                >
-                  Explore the path
-                </Link>
+          {/* Product preview: an illustrative mock of the learner dashboard.
+              Showing the real reward loop (ring + streak + XP + lesson list)
+              converts far better than an abstract gradient panel. */}
+          <div className="relative hidden lg:block" aria-hidden="true">
+            <div className="animate-float glass relative overflow-hidden rounded-4xl p-6 shadow-glow-lg">
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-brand-400">
+                    Continue learning
+                  </p>
+                  <p className="mt-1 truncate text-lg font-extrabold tracking-tight text-content">
+                    Cloud &amp; AI Career Path
+                  </p>
+                </div>
+                <ProgressRing value={68} size={72} strokeWidth={7} variant="brand" />
               </div>
+
+              {/* Streak / XP strip */}
+              <div className="mt-5 grid grid-cols-3 gap-2">
+                {/* Values match the real level curve in lib/gamification.ts
+                    (2,480 XP = level 5, 42% toward level 6) so the preview does
+                    not contradict what a learner actually sees after signing up. */}
+                {[
+                  { icon: '🔥', value: '12', label: 'streak' },
+                  { icon: '⚡', value: '2,480', label: 'XP' },
+                  { icon: '💎', value: '5', label: 'level' }
+                ].map((item) => (
+                  <div
+                    key={item.label}
+                    className="rounded-2xl border border-hairline bg-surface/70 px-2 py-2.5 text-center"
+                  >
+                    <span className="text-base">{item.icon}</span>
+                    <p className="text-sm font-extrabold tabular-nums text-content">{item.value}</p>
+                    <p className="text-[9.5px] font-bold uppercase tracking-wider text-content-subtle">
+                      {item.label}
+                    </p>
+                  </div>
+                ))}
+              </div>
+
+              <div className="mt-4 xp-track">
+                <div className="xp-fill" style={{ width: '42%' }} />
+              </div>
+
+              {/* Lesson checklist */}
+              <ul className="mt-5 space-y-2.5">
+                {[
+                  { title: 'Containers & Images', state: 'done' },
+                  { title: 'Pods and Deployments', state: 'done' },
+                  { title: 'Ingress & Service Mesh', state: 'current' },
+                  { title: 'Observability & SLOs', state: 'locked' }
+                ].map((lesson) => (
+                  <li key={lesson.title} className="flex items-center gap-3 text-sm">
+                    {lesson.state === 'done' ? (
+                      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-success-500 text-white">
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round">
+                          <path d="m20 6-11 11-5-5" />
+                        </svg>
+                      </span>
+                    ) : lesson.state === 'current' ? (
+                      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-brand-500 text-white shadow-glow">
+                        <svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor">
+                          <path d="M8 5v14l11-7z" />
+                        </svg>
+                      </span>
+                    ) : (
+                      <span className="h-5 w-5 shrink-0 rounded-full border-2 border-hairline" />
+                    )}
+                    <span
+                      className={
+                        lesson.state === 'current'
+                          ? 'font-bold text-content'
+                          : lesson.state === 'done'
+                            ? 'text-content-subtle line-through'
+                            : 'text-content-subtle'
+                      }
+                    >
+                      {lesson.title}
+                    </span>
+                  </li>
+                ))}
+              </ul>
             </div>
           </div>
         </div>

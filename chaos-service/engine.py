@@ -43,21 +43,21 @@ INTENSITY_PRESETS: dict[str, dict[str, Any]] = {
         "duration": (45, 90),
         "max_concurrent": 1,
         "magnitude_scale": 0.6,
-        "allow_kubernetes": False,
+        "allow_infrastructure": False,
     },
     "normal": {
         "gap": (35, 80),
         "duration": (60, 120),
         "max_concurrent": 2,
         "magnitude_scale": 1.0,
-        "allow_kubernetes": False,
+        "allow_infrastructure": False,
     },
     "aggressive": {
         "gap": (15, 40),
         "duration": (75, 150),
         "max_concurrent": 3,
         "magnitude_scale": 1.6,
-        "allow_kubernetes": False,
+        "allow_infrastructure": False,
     },
 }
 DEFAULT_INTENSITY = "normal"
@@ -236,7 +236,7 @@ class ChaosEngine:
                 s
                 for s in self._auto_pool
                 if s.name not in running
-                and (preset["allow_kubernetes"] or s.category == "application")
+                and (preset["allow_infrastructure"] or s.category == "application")
             ]
             if not candidates:
                 continue

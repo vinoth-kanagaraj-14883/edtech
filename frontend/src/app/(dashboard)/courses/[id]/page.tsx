@@ -177,7 +177,7 @@ export default async function CourseDetailPage({ params }: CourseDetailPageProps
           {outcomes.map((outcome) => (
             <li key={outcome} className="flex items-start gap-3 text-sm leading-relaxed text-content-muted">
               <span
-                className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-brand-50 text-brand-600 dark:bg-brand-500/12 dark:text-brand-300"
+                className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-brand-50 text-brand-600 dark:bg-brand-500/10 dark:text-brand-300"
                 aria-hidden="true"
               >
                 <svg width="12" height="12" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="3">

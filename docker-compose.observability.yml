@@ -155,8 +155,18 @@ services:
   loadgen:
     image: grafana/k6:0.52.0
     container_name: edtech-loadgen
-    # k6 exits when the run window ends; `unless-stopped` loops it forever.
-    restart: unless-stopped
+    # k6 exits when its run window ends, so the restart policy is what makes the
+    # traffic continuous. `always` rather than `unless-stopped` so it also comes
+    # back after a Docker daemon or host restart — this generator is meant to be
+    # running whenever the stack is up.
+    #
+    # If you ever see no traffic on the dashboards, check this container first:
+    #   docker logs --tail 30 edtech-loadgen
+    # A script syntax error surfaces as exit code 107 in a tight restart loop.
+    # Validate script changes with k6 itself, not node:
+    #   docker run --rm -v "$PWD/demo:/scripts:ro" grafana/k6:0.52.0 \
+    #     inspect /scripts/load-continuous.js
+    restart: always
     environment:
       API_URL: ${LOADGEN_API_URL:-http://api-gateway:8080}
       VUS: ${LOADGEN_VUS:-10}

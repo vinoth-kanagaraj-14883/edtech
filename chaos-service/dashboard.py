@@ -21,6 +21,7 @@ def render_dashboard(scenarios: list[dict[str, Any]], playbooks: list[dict[str, 
     return (
         _TEMPLATE
         .replace("__APP_CARDS__", _scenario_cards([s for s in scenarios if s["category"] == "application"]))
+        .replace("__DOCKER_CARDS__", _scenario_cards([s for s in scenarios if s["category"] == "docker"]))
         .replace("__KUBE_CARDS__", _scenario_cards([s for s in scenarios if s["category"] == "kubernetes"]))
         .replace("__PLAYBOOK_CARDS__", _playbook_cards(playbooks))
         .replace("__SCENARIOS_JSON__", _json_for_script(scenarios))
@@ -91,7 +92,7 @@ def _scenario_cards(scenarios: list[dict[str, Any]]) -> str:
 
         out.append(
             f"""
-        <div class="card" id="card-{name}">
+        <div class="card" id="card-{name}" data-category="{html.escape(s["category"])}">
           <div class="card-head">
             <div>
               <div class="title">{html.escape(s["title"])}</div>
@@ -231,6 +232,14 @@ _TEMPLATE = """<!doctype html>
   .pill { display:inline-block; font-size:10.5px; padding:2px 8px; border-radius:12px; }
   .pill.up { background:rgba(63,185,80,.15); color:var(--green); }
   .pill.down { background:rgba(248,81,73,.15); color:var(--red); }
+
+  .works { color:var(--green); text-transform:none; letter-spacing:0; font-weight:600; }
+  .backend-note { margin:0 28px 6px; font-size:12px; color:var(--muted); }
+  .backend-note.bad { color:var(--yellow); }
+  /* Cards whose backend is unreachable stay visible but are clearly inert, so
+     the catalogue still documents what exists in the other environment. */
+  .card.disabled { opacity:.45; filter:grayscale(.7); }
+  .card.disabled .actions button { pointer-events:none; }
   .empty { color:var(--muted); font-size:12px; padding:10px 14px; }
   #toast { position:fixed; bottom:18px; right:18px; background:var(--panel);
     border:1px solid var(--accent); border-radius:8px; padding:11px 15px; font-size:12.5px;
@@ -248,6 +257,7 @@ _TEMPLATE = """<!doctype html>
     <div class="sub">Inject faults, then find them in Jaeger / Prometheus / Grafana. Everything auto-expires.</div>
   </div>
   <div class="toolbar">
+    <span id="docker-pill" class="pill down">docker: ?</span>
     <span id="kube-pill" class="pill down">kubernetes: ?</span>
     <select id="intensity" title="Auto-mode intensity">
       <option value="calm">calm</option>
@@ -264,10 +274,15 @@ _TEMPLATE = """<!doctype html>
     <h2 class="section">Game days &middot; multi-step incidents</h2>
     <div class="grid">__PLAYBOOK_CARDS__</div>
 
-    <h2 class="section">Application scenarios &middot; via Redis chaos flags</h2>
+    <h2 class="section">Application scenarios &middot; via Redis chaos flags &middot; <span class="works">works everywhere</span></h2>
     <div class="grid">__APP_CARDS__</div>
 
+    <h2 class="section">Docker scenarios &middot; via the Docker Engine API</h2>
+    <div class="backend-note" id="docker-note"></div>
+    <div class="grid">__DOCKER_CARDS__</div>
+
     <h2 class="section">Kubernetes scenarios &middot; via the Kubernetes API</h2>
+    <div class="backend-note" id="kube-note"></div>
     <div class="grid">__KUBE_CARDS__</div>
   </div>
 
@@ -487,10 +502,41 @@ _TEMPLATE = """<!doctype html>
       document.getElementById('stat-flags').querySelector('.n').textContent = flagCount;
       renderBlast(targets);
 
+      // Backend availability: reflect it on the pills, the section notes, and by
+      // visibly disabling scenarios that cannot run in this environment.
+      const kubeOk = !!(s.kubernetes && s.kubernetes.available);
+      const dockerOk = !!(s.docker && s.docker.available);
+
       const kp = document.getElementById('kube-pill');
-      const ok = s.kubernetes && s.kubernetes.available;
-      kp.className = 'pill ' + (ok ? 'up' : 'down');
-      kp.textContent = 'kubernetes: ' + (ok ? 'connected' : 'unavailable');
+      kp.className = 'pill ' + (kubeOk ? 'up' : 'down');
+      kp.textContent = 'kubernetes: ' + (kubeOk ? 'connected' : 'unavailable');
+
+      const dp = document.getElementById('docker-pill');
+      if (dp) {
+        dp.className = 'pill ' + (dockerOk ? 'up' : 'down');
+        dp.textContent = 'docker: ' + (dockerOk ? 'connected' : 'unavailable');
+      }
+
+      const setNote = (id, ok, reason, hint) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.className = 'backend-note' + (ok ? '' : ' bad');
+        el.textContent = ok ? reason : (reason + ' \\u2014 ' + hint);
+      };
+      setNote('docker-note', dockerOk,
+        (s.docker && s.docker.reason) || 'docker backend',
+        'mount /var/run/docker.sock into the chaos-service container to enable these');
+      setNote('kube-note', kubeOk,
+        (s.kubernetes && s.kubernetes.reason) || 'kubernetes backend',
+        'these run only against a Kubernetes cluster');
+
+      document.querySelectorAll('.card[data-category]').forEach((card) => {
+        const cat = card.getAttribute('data-category');
+        const usable = cat === 'application'
+          || (cat === 'docker' && dockerOk)
+          || (cat === 'kubernetes' && kubeOk);
+        card.classList.toggle('disabled', !usable);
+      });
     } catch (e) { /* transient */ }
   }
 

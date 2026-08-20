@@ -40,7 +40,9 @@ class RedisFault:
 @dataclass
 class Scenario:
     name: str
-    category: str  # "application" | "kubernetes"
+    # "application" runs anywhere (Redis flags injected inside each service).
+    # "docker" needs the Docker socket; "kubernetes" needs a cluster.
+    category: str  # "application" | "docker" | "kubernetes"
     title: str
     description: str
     target_service: str
@@ -54,6 +56,8 @@ class Scenario:
     # Kubernetes scenarios: the handler key dispatched to k8s_chaos.
     kube_action: str = ""
     default_target_workload: str = ""
+    # Docker scenarios: the handler key dispatched to docker_chaos.
+    docker_action: str = ""
 
     def to_public(self) -> dict[str, Any]:
         return {
@@ -444,7 +448,134 @@ KUBERNETES_SCENARIOS = [
 ]
 
 
-ALL_SCENARIOS = APPLICATION_SCENARIOS + KUBERNETES_SCENARIOS
+# ── Docker scenarios (Docker Engine API via the mounted socket) ──────────────
+# These give Compose users the infrastructure-level half of the chaos catalogue
+# that previously only existed for Kubernetes. They are genuinely different
+# faults from the application scenarios: the application ones are injected
+# *inside* a healthy process, whereas these attack the process and its network
+# from the outside, so the failure modes callers observe are different.
+
+DOCKER_SCENARIOS = [
+    Scenario(
+        name="docker-container-kill",
+        category="docker",
+        title="Container kill (crash + recover)",
+        description=(
+            "Restarts the container out from under live traffic — the Compose "
+            "equivalent of a pod being killed and recreated."
+        ),
+        target_service="payment-service",
+        blast_radius="the target service, plus anything mid-request through it",
+        how_it_shows=(
+            "In-flight requests fail immediately, then recover once the process is "
+            "back and its DB pool has re-warmed. In Jaeger you get a cluster of "
+            "connection-refused error spans followed by a burst of cold-start "
+            "latency — the classic 'why is p99 spiky after a deploy?' shape."
+        ),
+        docker_action="container_kill",
+    ),
+    Scenario(
+        name="docker-container-stop",
+        category="docker",
+        title="Container outage (hard down)",
+        description=(
+            "Stops the container and leaves it down until the scenario is stopped. "
+            "Tests whether callers degrade gracefully or cascade."
+        ),
+        target_service="notification-service",
+        blast_radius="the target service and every caller that does not degrade",
+        how_it_shows=(
+            "Callers get connection-refused fast. Watch whether the gateway's "
+            "circuit breaker opens (good) or whether the failure propagates into "
+            "user-facing 5xx (bad). The service disappears as a node in Jaeger's "
+            "service map, which makes the dependency obvious."
+        ),
+        docker_action="container_stop",
+    ),
+    Scenario(
+        name="docker-container-freeze",
+        category="docker",
+        title="Container freeze (SIGSTOP — hung process)",
+        description=(
+            "Pauses every process in the container. TCP still accepts, but nothing "
+            "ever answers. This has no Kubernetes equivalent and is the most "
+            "realistic fault in the catalogue."
+        ),
+        target_service="course-service",
+        blast_radius="the target service and every caller without a sane timeout",
+        how_it_shows=(
+            "The nastiest failure mode there is: callers hang until their own "
+            "timeout fires instead of failing fast, so connection pools and "
+            "thread pools fill up and the outage spreads to services that are "
+            "themselves perfectly healthy. This is what a GC death-spiral, a "
+            "deadlock, or a frozen VM looks like from the outside — and it is "
+            "exactly the case naive retry logic handles worst. Look for p99 "
+            "pinned at the client timeout value rather than an error spike."
+        ),
+        docker_action="container_pause",
+    ),
+    Scenario(
+        name="docker-cpu-throttle",
+        category="docker",
+        title="CPU starvation (cgroup quota)",
+        description=(
+            "Caps the container at a fraction of one CPU core using the real "
+            "cgroup quota — not a busy-loop inside the app."
+        ),
+        target_service="course-service",
+        blast_radius="the target service, worsening under concurrency",
+        how_it_shows=(
+            "Latency climbs non-linearly with load because requests queue for CPU. "
+            "Unlike the in-app CPU scenario this throttles the whole container "
+            "including the runtime and GC, so JVM/Node services degrade the way "
+            "they do on an oversubscribed node."
+        ),
+        default_magnitude=10,
+        magnitude_unit="% of one core",
+        docker_action="cpu_throttle",
+    ),
+    Scenario(
+        name="docker-memory-limit",
+        category="docker",
+        title="Memory limit (real OOM kill)",
+        description=(
+            "Lowers the container's memory limit so the kernel OOM-kills it under "
+            "load. Swap is disabled so the limit actually bites."
+        ),
+        target_service="content-service",
+        blast_radius="the target service; repeated kills look like a crash loop",
+        how_it_shows=(
+            "The container is killed by the kernel (exit 137) and restarted, "
+            "repeatedly if traffic keeps up — a genuine crash loop rather than a "
+            "simulated one. Compare with the in-app memleak scenario: that grows "
+            "RSS gradually, this kills abruptly with no warning in the app logs."
+        ),
+        default_magnitude=96,
+        magnitude_unit="MB",
+        docker_action="memory_limit",
+    ),
+    Scenario(
+        name="docker-network-partition",
+        category="docker",
+        title="Network partition (detach from network)",
+        description=(
+            "Disconnects the container from its Docker networks. The process stays "
+            "alive and healthy but is unreachable — a true split-brain."
+        ),
+        target_service="quiz-service",
+        blast_radius="the target service in both directions, including its DB and Redis",
+        how_it_shows=(
+            "Different from a stop: the process is still running and still thinks "
+            "it is fine, but its own outbound calls fail too (DNS included). The "
+            "service keeps reporting itself healthy internally while every caller "
+            "times out — the hardest kind of outage to diagnose from logs alone, "
+            "and the best argument for external black-box probing."
+        ),
+        docker_action="network_disconnect",
+    ),
+]
+
+ALL_SCENARIOS = APPLICATION_SCENARIOS + DOCKER_SCENARIOS + KUBERNETES_SCENARIOS
 SCENARIOS_BY_NAME = {s.name: s for s in ALL_SCENARIOS}
 
 

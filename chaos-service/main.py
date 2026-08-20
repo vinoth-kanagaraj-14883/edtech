@@ -38,6 +38,7 @@ from prometheus_client import CONTENT_TYPE_LATEST, Counter, Gauge, generate_late
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from dashboard import render_dashboard
+from docker_chaos import DockerChaos
 from engine import INTENSITY_PRESETS, ChaosEngine
 from k8s_chaos import KubeChaos
 from scenarios import (
@@ -121,6 +122,16 @@ auto_mode_gauge = Gauge(
     "1 when chaos auto mode (chaos monkey) is running, 0 otherwise",
 )
 
+# Per-scenario active flag. This is what makes chaos visible on the Grafana
+# dashboards: an annotation query of `chaos_scenario_active > 0` draws a labelled
+# region over every latency/error panel, so a spike can be attributed to a
+# specific injected fault instead of being guessed at.
+scenario_active_gauge = Gauge(
+    "chaos_scenario_active",
+    "1 while a named chaos scenario is active, 0 once it has been cleared",
+    ["scenario", "category", "target"],
+)
+
 fastapi_instrumentor = FastAPIInstrumentor()
 
 # In-memory record of active scenarios: name -> {params, faults/action, startedAt}.
@@ -179,6 +190,7 @@ async def lifespan(app: FastAPI):
     logger.info("service_starting", port=settings.chaos_port)
     app.state.redis = create_redis_client()
     app.state.kube = KubeChaos(settings.kube_namespace)
+    app.state.docker = DockerChaos()
 
     ENGINE = ChaosEngine(starter=_start_scenario, stopper=_stop_scenario, clock=time.time)
     ENGINE.configure_auto_pool(ALL_SCENARIOS)
@@ -190,6 +202,8 @@ async def lifespan(app: FastAPI):
         "service_started",
         kubernetes_available=app.state.kube.available,
         kubernetes_reason=app.state.kube.reason,
+        docker_available=app.state.docker.available,
+        docker_reason=app.state.docker.reason,
     )
     try:
         yield
@@ -197,6 +211,10 @@ async def lifespan(app: FastAPI):
         logger.info("service_shutting_down")
         if ENGINE is not None:
             await ENGINE.shutdown()
+        try:
+            app.state.docker.close()
+        except Exception:
+            pass
         try:
             await app.state.redis.aclose()
         except Exception:
@@ -295,6 +313,8 @@ async def list_scenarios() -> dict[str, Any]:
         "scenarios": [s.to_public() for s in ALL_SCENARIOS],
         "active": list(ACTIVE.keys()),
         "kubernetesAvailable": app.state.kube.available,
+        "dockerAvailable": app.state.docker.available,
+        "dockerTargets": app.state.docker.list_targets(),
     }
 
 
@@ -325,6 +345,7 @@ async def _start_scenario(name: str, params: dict[str, Any]) -> dict[str, Any]:
         }
         scenario_runs_counter.labels(name, "start", "ok").inc()
         active_scenarios_gauge.set(len(ACTIVE))
+        scenario_active_gauge.labels(name, "application", scenario.target_service).set(1)
         if engine is not None:
             engine.schedule_expiry(name, duration)
             engine.record(
@@ -346,20 +367,28 @@ async def _start_scenario(name: str, params: dict[str, Any]) -> dict[str, Any]:
             "howItShows": scenario.how_it_shows,
         }
 
-    # kubernetes
+    # docker / kubernetes — infrastructure backends
     target = params.get("target") or scenario.default_target_workload or scenario.target_service
-    result = app.state.kube.start(scenario.kube_action, target, params)
+    if scenario.category == "docker":
+        backend, action = app.state.docker, scenario.docker_action
+    else:
+        backend, action = app.state.kube, scenario.kube_action
+
+    result = backend.start(action, target, params)
     outcome = "ok" if result.get("ok") else "error"
     scenario_runs_counter.labels(name, "start", outcome).inc()
     if result.get("ok"):
         ACTIVE[name] = {
-            "category": "kubernetes",
-            "action": scenario.kube_action,
+            "category": scenario.category,
+            "action": action,
             "target": target,
             "params": params,
+            "magnitude": params.get("magnitude"),
+            "unit": scenario.magnitude_unit,
             "startedAt": time.time(),
         }
         active_scenarios_gauge.set(len(ACTIVE))
+        scenario_active_gauge.labels(name, scenario.category, target).set(1)
         if engine is not None:
             engine.schedule_expiry(name, duration)
             engine.record("started", f"{scenario.title} → {target}", name, target=target)
@@ -369,7 +398,7 @@ async def _start_scenario(name: str, params: dict[str, Any]) -> dict[str, Any]:
     return {
         "ok": result.get("ok", False),
         "scenario": name,
-        "category": "kubernetes",
+        "category": scenario.category,
         "target": target,
         "message": result.get("message"),
         "durationSeconds": int(duration) or None,
@@ -391,16 +420,23 @@ async def _stop_scenario(name: str, _params: dict[str, Any]) -> dict[str, Any]:
         was_active = ACTIVE.pop(name, None) is not None
         scenario_runs_counter.labels(name, "stop", "ok").inc()
         active_scenarios_gauge.set(len(ACTIVE))
+        scenario_active_gauge.labels(name, "application", scenario.target_service).set(0)
         if engine is not None and was_active:
             engine.record("stopped", f"{scenario.title} cleared", name)
         logger.info("scenario_stopped", scenario=name, keys=keys)
         return {"ok": True, "scenario": name, "message": f"cleared {len(keys)} flag(s)"}
 
     target = (record or {}).get("target") or scenario.default_target_workload or scenario.target_service
-    result = app.state.kube.stop(scenario.kube_action, target, (record or {}).get("params", {}))
+    if scenario.category == "docker":
+        backend, action = app.state.docker, scenario.docker_action
+    else:
+        backend, action = app.state.kube, scenario.kube_action
+
+    result = backend.stop(action, target, (record or {}).get("params", {}))
     was_active = ACTIVE.pop(name, None) is not None
     scenario_runs_counter.labels(name, "stop", "ok" if result.get("ok") else "error").inc()
     active_scenarios_gauge.set(len(ACTIVE))
+    scenario_active_gauge.labels(name, scenario.category, target).set(0)
     if engine is not None and was_active:
         engine.record("stopped", f"{scenario.title} reverted", name)
     logger.info("scenario_stopped", scenario=name, target=target, result=result)
@@ -462,6 +498,7 @@ async def chaos_status(request: Request) -> dict[str, Any]:
         "liveRedisFlags": live_flags,
         "redisOk": redis_ok,
         "kubernetes": request.app.state.kube.status(),
+        "docker": request.app.state.docker.status(),
         "auto": {
             "enabled": engine.auto_enabled if engine else False,
             "intensity": engine.auto_intensity if engine else None,
@@ -560,15 +597,21 @@ async def reset_all(request: Request) -> dict[str, Any]:
     except Exception as exc:
         logger.warning("reset_redis_failed", error=str(exc))
     kube_results = request.app.state.kube.reset_all()
+    docker_results = request.app.state.docker.reset_all()
     ACTIVE.clear()
     active_scenarios_gauge.set(0)
+    # Zero every per-scenario series so Grafana annotations close cleanly.
+    for scenario in ALL_SCENARIOS:
+        target = scenario.default_target_workload or scenario.target_service
+        scenario_active_gauge.labels(scenario.name, scenario.category, target).set(0)
     if engine is not None:
-        engine.record("info", f"reset — cleared {cleared} flag(s) and reverted Kubernetes chaos")
+        engine.record("info", f"reset — cleared {cleared} flag(s), reverted Docker and Kubernetes chaos")
     logger.info("chaos_reset", cleared_flags=cleared)
     return {
         "ok": True,
-        "message": f"cleared {cleared} Redis chaos flag(s) and reverted Kubernetes chaos",
+        "message": f"cleared {cleared} Redis chaos flag(s) and reverted Docker + Kubernetes chaos",
         "kubernetes": kube_results,
+        "docker": docker_results,
     }
 
 

@@ -29,7 +29,14 @@ COPY --from=builder /opt/venv /opt/venv
 COPY . .
 RUN chown -R app:app /app
 
-USER app
+COPY entrypoint.sh /entrypoint.sh
+RUN sed -i 's/\r$//' /entrypoint.sh && chmod +x /entrypoint.sh
+
 EXPOSE 8090
 
+# NOTE: deliberately no `USER app` here. The entrypoint starts as root only long
+# enough to join the mounted Docker socket's group (whose gid varies per host),
+# then drops to the unprivileged `app` user via setpriv before exec'ing uvicorn.
+# See entrypoint.sh. The service itself never runs as root.
+ENTRYPOINT ["/entrypoint.sh"]
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8090"]

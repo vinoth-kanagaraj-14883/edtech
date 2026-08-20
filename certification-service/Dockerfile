@@ -5,18 +5,21 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=1 \
     VENV_PATH=/opt/venv
 
-RUN apt-get update \
-    && apt-get install --yes --no-install-recommends build-essential libpq-dev \
-    && rm -rf /var/lib/apt/lists/*
-
+# NOTE: no apt-get here on purpose. This service talks to Postgres through
+# asyncpg only (there is no psycopg2 dependency at all), and asyncpg ships
+# manylinux wheels for cp311 — so neither a compiler nor libpq-dev is required.
+# Dropping this removes a build-time dependency on the Debian mirrors, which
+# fails behind a corporate proxy.
 RUN python -m venv ${VENV_PATH}
 ENV PATH="${VENV_PATH}/bin:${PATH}"
 
 WORKDIR /app
 COPY requirements.txt ./
+# --only-binary=:all: fails loudly if a dependency ever stops shipping a wheel,
+# rather than falling back to a compile that cannot succeed here.
 RUN pip install --upgrade pip wheel \
     && pip install "setuptools<81" \
-    && pip install -r requirements.txt
+    && pip install --only-binary=:all: -r requirements.txt
 
 FROM python:3.11-slim AS runtime
 
@@ -25,10 +28,10 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     VENV_PATH=/opt/venv \
     PATH="/opt/venv/bin:${PATH}"
 
-RUN apt-get update \
-    && apt-get install --yes --no-install-recommends libpq5 \
-    && rm -rf /var/lib/apt/lists/* \
-    && groupadd --system app \
+# No libpq5 needed at runtime — asyncpg speaks the Postgres wire protocol
+# directly and links nothing from the system. groupadd/useradd already exist in
+# python:3.11-slim.
+RUN groupadd --system app \
     && useradd --system --gid app --create-home --home-dir /home/app app
 
 WORKDIR /app

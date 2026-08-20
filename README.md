@@ -349,6 +349,21 @@ and REST API. It injects faults two ways:
   cluster is reachable, and there are equivalent [Chaos Mesh](chaos-service/k8s-chaos/)
   manifests for a declarative alternative.
 
+Chaos runs on **three backends**, so it is not Kubernetes-only — 18 of the 23
+scenarios work under plain `docker compose up`:
+
+| Backend | Count | Needs | Compose | k8s |
+|---|---|---|---|---|
+| application (Redis flags, injected in-process) | 12 | Redis | ✅ | ✅ |
+| docker (Engine API via the mounted socket) | 6 | `/var/run/docker.sock` | ✅ | ✖ |
+| kubernetes (Kubernetes API) | 5 | a cluster | ✖ | ✅ |
+
+The Docker backend adds real infrastructure faults locally: container kill,
+hard outage, **freeze (SIGSTOP)**, cgroup CPU quota, memory limit with a genuine
+OOM kill, and network partition. The freeze has no Kubernetes equivalent and is
+the most realistic fault in the set — the container still accepts connections but
+never answers, so callers hang until their own timeout instead of failing fast.
+
 The chaos server is **active**, not just a set of switches:
 
 - **Timed experiments** — every injection can carry a `duration` and auto-clears
@@ -386,9 +401,26 @@ curl -XPOST localhost:8090/auto/start -H 'content-type: application/json' \
 # Follow everything the engine is doing
 curl -s localhost:8090/events | jq '.events[] | "\(.kind): \(.message)"'
 
+# Freeze a container (SIGSTOP) — callers hang instead of failing fast
+curl -XPOST localhost:8090/scenarios/docker-container-freeze/start \
+  -H 'content-type: application/json' -d '{"duration":90}'
+
 # Clear everything (also stops auto mode and any running game day)
 curl -XPOST localhost:8090/reset
 ```
+
+### Seeing chaos on the dashboards
+
+Every experiment sets `chaos_scenario_active{scenario,category,target}`, which
+Grafana renders as a **labelled red band across the SLO, overview,
+service-detail, app-runtime and L7 dashboards**. That is what makes a latency
+spike attributable to a specific injected fault instead of a guess.
+
+There is also a dedicated **`EduForge - Chaos Engineering`** dashboard
+(uid `edtech-chaos`) laid out as cause-above-effect: what is being injected on
+top, what it did to p99 / error rate / `up` / throughput underneath. A band with
+no bump under it means the platform absorbed the fault — a passing resilience
+test. See [chaos-service/README.md](chaos-service/README.md) for what to look for.
 
 **The 10 scenarios**
 

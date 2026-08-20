@@ -62,6 +62,97 @@ importantly — `howItShows`: exactly what to watch for in the telemetry.
 | `POST /playbooks/cancel` | Cancel the running game day and clear its faults |
 | `POST /reset` | Clear **all** chaos flags, stop auto mode, revert all k8s chaos |
 
+## Three backends — what runs where
+
+Chaos is **not** Kubernetes-only. The catalogue has 23 scenarios across three
+backends, and the dashboard greys out any whose backend is unreachable.
+
+| Backend | Scenarios | Needs | Works under Compose | Works under k8s |
+|---|---|---|---|---|
+| **application** | 12 | Redis only | ✅ | ✅ |
+| **docker** | 6 | `/var/run/docker.sock` mounted | ✅ | ✖ |
+| **kubernetes** | 5 | a reachable cluster | ✖ | ✅ |
+
+The application scenarios are injected *inside* a healthy process (latency,
+error rate, CPU burn, memory leak) and so behave identically in both
+environments. The Docker and Kubernetes backends attack the process and its
+network from the *outside*, which produces genuinely different failure modes.
+
+### Docker scenarios
+
+Enabled by the socket mount that `docker-compose.yml` already sets up:
+
+| Scenario | What it really does |
+|---|---|
+| `docker-container-kill` | `restart` — crash + recover, like a pod being replaced |
+| `docker-container-stop` | hard outage until stopped; tests caller degradation |
+| `docker-container-freeze` | **`pause` (SIGSTOP)** — see below |
+| `docker-cpu-throttle` | real cgroup CPU quota (`magnitude` = % of one core) |
+| `docker-memory-limit` | lowers the memory limit so the kernel OOM-kills it |
+| `docker-network-partition` | detaches from all networks — true split-brain |
+
+**`docker-container-freeze` is the most realistic fault in the whole catalogue
+and has no Kubernetes equivalent.** A frozen container still accepts TCP
+connections but never answers, so callers hang until their own timeout fires
+rather than failing fast. Connection and thread pools fill, and the outage
+spreads to services that are themselves perfectly healthy. That is what a GC
+death-spiral, a deadlock, or a frozen VM looks like from the outside — and it is
+the case naive retry logic handles worst. Watch for p99 pinned at the client
+timeout value with no error-rate spike.
+
+**Two Docker behaviours worth knowing** (both verified against the Engine API on
+cgroup v2, not assumed):
+
+* A CPU quota is cleared with `-1`; passing `0` is silently ignored.
+* A memory limit **cannot be unset** on a running container — `0` is ignored and
+  `-1` returns HTTP 400. Reverting therefore raises the limit back to total host
+  RAM, which is functionally unlimited. The revert message says so explicitly.
+
+Security: the Docker socket is equivalent to root on the host. That is fine for a
+local chaos sandbox, but do not ship the mount to a shared environment — use the
+Kubernetes backend with a scoped ServiceAccount there. `CHAOS_DISABLE_DOCKER=1`
+refuses the socket even when mounted. The service itself does **not** run as
+root: its entrypoint joins the socket's group and then drops to an unprivileged
+user via `setpriv`.
+
+## Seeing it on the dashboards
+
+Injecting a fault is only half of it — the point is watching it land.
+
+**1. Chaos annotations (the important one).** Every chaos experiment now draws a
+labelled red band across `edtech-slo`, `edtech-overview`, `edtech-service-detail`,
+`edtech-app-runtime` and `edtech-http-l7`. It is driven by a new metric:
+
+```
+chaos_scenario_active{scenario="...", category="...", target="..."}  # 1 while active
+```
+
+This is what turns "there is a latency spike" into "the latency spike was
+`docker-container-freeze` on course-service". Without it you are correlating by
+wall-clock guesswork.
+
+**2. The chaos dashboard** — `EduForge - Chaos Engineering` (uid `edtech-chaos`),
+laid out as cause above effect:
+
+* top row — active faults, auto-mode state, which scenarios are running, start/stop rate
+* bottom rows — p99 latency, error rate, `up`, and request rate, all with the
+  chaos bands shaded over them
+
+Some things to look for:
+
+* A band with **no bump** underneath means the fault was absorbed — that is a
+  passing resilience test, not a broken experiment.
+* A bump that **outlasts** the band is slow recovery (cold caches, pool refill).
+* The `silent-degradation` playbook deliberately moves p99 while leaving error
+  rate flat — which is the whole argument for percentile latency over uptime checks.
+* During `docker-container-freeze`, `up` may stay **1** while the service serves
+  nothing. That contrast between "scrape succeeded" and "actually working" is the
+  lesson of the scenario.
+
+**3. Jaeger** — the service map loses the node during a stop/partition, and gains
+fat error spans during a freeze. **4. `GET /events`** on the chaos-service is the
+raw engine log if you want to correlate by hand.
+
 ## Active chaos: the engine
 
 The service does more than hold on/off switches — it runs chaos on its own.

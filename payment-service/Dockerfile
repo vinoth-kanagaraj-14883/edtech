@@ -5,19 +5,23 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=1 \
     VENV_PATH=/opt/venv
 
-RUN apt-get update \
-    && apt-get install --yes --no-install-recommends build-essential libpq-dev \
-    && rm -rf /var/lib/apt/lists/*
-
+# NOTE: no apt-get here on purpose. Every pinned dependency ships a manylinux
+# wheel for cp311 — psycopg2-binary statically bundles libpq, and asyncpg /
+# uvloop / httptools / pydantic-core all publish prebuilt wheels. Installing
+# build-essential + libpq-dev was therefore unnecessary, and it made the image
+# depend on reaching the Debian mirrors at build time (which fails behind a
+# corporate proxy and added ~200MB plus minutes to every build).
 RUN python -m venv ${VENV_PATH}
 ENV PATH="${VENV_PATH}/bin:${PATH}"
 
 WORKDIR /app
 COPY requirements.txt ./
+# --only-binary=:all: makes the wheel assumption explicit: if a dependency ever
+# stops publishing a wheel this fails loudly here instead of silently trying to
+# compile and erroring out with a missing-compiler message.
 RUN pip install --upgrade pip wheel \
     && pip install "setuptools<81" \
-    && pip install -r requirements.txt \
-    && pip install asyncpg==0.29.0
+    && pip install --only-binary=:all: -r requirements.txt
 
 FROM python:3.11-slim AS runtime
 
@@ -26,10 +30,10 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     VENV_PATH=/opt/venv \
     PATH="/opt/venv/bin:${PATH}"
 
-RUN apt-get update \
-    && apt-get install --yes --no-install-recommends libpq5 \
-    && rm -rf /var/lib/apt/lists/* \
-    && groupadd --system app \
+# libpq5 is not needed at runtime either: psycopg2-binary carries its own copy of
+# libpq. groupadd/useradd are already present in python:3.11-slim, so the user can
+# be created without installing anything.
+RUN groupadd --system app \
     && useradd --system --gid app --create-home --home-dir /home/app app
 
 WORKDIR /app

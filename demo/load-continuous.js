@@ -47,6 +47,70 @@ function tag(name) {
   return { tags: { journey: name }, headers: { 'X-Demo-Journey': name } };
 }
 
+// The catalog response shape varies by which upstream answered (course-service
+// returns a Spring page, search-service returns {courses}, and some paths return
+// a bare array). Accept all of them — if this returns '' the enroll/track/certify
+// journeys are skipped and their service-map edges never appear, which is a very
+// confusing failure to debug from the Jaeger UI alone.
+function extractCourseId(response) {
+  try {
+    const body = response.json();
+    const list = Array.isArray(body)
+      ? body
+      : (body && (body.courses || body.content || body.items || body.data)) || [];
+    if (!list.length) {
+      return '';
+    }
+    const picked = list[Math.floor(Math.random() * list.length)];
+    if (!picked) {
+      return '';
+    }
+    // NOTE: deliberately not using `??` (nullish coalescing) here. k6 0.52's
+    // bundled Babel transform does not support it, and because this script is
+    // compiled at container start a syntax error does not fail a test — it makes
+    // the load generator crash-loop silently, which starves every dashboard and
+    // the Jaeger service map of traffic. Validate changes with
+    // `k6 inspect demo/load-continuous.js`, not with `node --check`.
+    const candidates = [picked.id, picked.courseId, picked._id, picked.slug];
+    for (const candidate of candidates) {
+      if (candidate !== undefined && candidate !== null && candidate !== '') {
+        return String(candidate);
+      }
+    }
+    return '';
+  } catch (_) {
+    return ''; // body may be empty/HTML while faults are injected
+  }
+}
+
+// Runs once, before any VU starts. The loadgen container only waits for the
+// gateway to *start*, not to be ready (the gateway has no healthcheck to depend
+// on), so without this the first few seconds of every run are connection
+// failures — which pollute the error-rate panels and look like a real incident.
+// Polling here keeps the dashboards honest and means the generator self-heals if
+// the gateway is slow to come up or is restarted underneath it.
+export function setup() {
+  const deadline = Date.now() + 120000; // give the stack up to 2 minutes
+  let attempt = 0;
+  while (Date.now() < deadline) {
+    attempt += 1;
+    const probe = http.get(`${BASE}/health`, {
+      tags: { journey: 'startup_probe' },
+      timeout: '5s'
+    });
+    if (probe.status > 0 && probe.status < 500) {
+      console.log(`gateway reachable after ${attempt} probe(s) — starting load`);
+      return { ready: true };
+    }
+    sleep(2);
+  }
+  // Do not throw: a hard failure here would abort the run and the container
+  // would crash-loop. Better to start generating traffic and let the resulting
+  // errors show up as real signal on the dashboards.
+  console.warn('gateway never became reachable — starting anyway');
+  return { ready: false };
+}
+
 export default function () {
   let token = '';
 
@@ -83,11 +147,7 @@ export default function () {
   group('02_browse_courses', function () {
     const r = http.get(`${BASE}/api/courses`, authOpts);
     check(r, { 'courses listed': (r) => r.status < 500 }) || errorRate.add(1);
-    try {
-      const body = r.json();
-      const list = (body && (body.courses || body.content || body.items)) || [];
-      if (list.length) courseId = list[Math.floor(Math.random() * list.length)].id;
-    } catch (_) { /* ignore during fault injection */ }
+    courseId = extractCourseId(r);
     sleep(Math.random() * 1.5);
   });
 
@@ -141,6 +201,16 @@ export default function () {
       const cert = http.post(`${BASE}/api/certificates`,
         JSON.stringify({ courseId }), authJson('certificate'));
       check(cert, { 'certificate handled': (r) => r.status !== 0 }) || errorRate.add(1);
+    });
+  } else {
+    // Fallback: we could not drive a full enrollment (no token, or the catalog
+    // was empty / failing). Still exercise the read paths of the revamped
+    // services so they keep appearing as nodes in the Jaeger service map and
+    // keep reporting RED metrics, instead of silently vanishing from the graph.
+    group('06_08_read_only_fallback', function () {
+      http.get(`${BASE}/api/payments`, tag('payment'));
+      http.get(`${BASE}/api/tracking/users/me`, tag('tracking'));
+      http.get(`${BASE}/api/certificates`, tag('certificate'));
     });
   }
 

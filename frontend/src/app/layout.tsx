@@ -32,9 +32,11 @@ export const viewport: Viewport = {
   ]
 };
 
-// Applies the stored (or system) theme before first paint so there is no
-// light-mode flash on load. Kept tiny and dependency-free on purpose.
-const themeScript = `(function(){try{var s=localStorage.getItem('eduforge-theme');var d=s?s==='dark':window.matchMedia('(prefers-color-scheme: dark)').matches;if(d)document.documentElement.classList.add('dark');}catch(e){}})();`;
+// Applies the stored theme before first paint so there is no flash on load.
+// The design is DARK-FIRST: with no stored preference we default to dark rather
+// than following the OS, so first-time visitors get the intended look. Light
+// mode is an explicit opt-in via the theme toggle. Kept tiny and dependency-free.
+const themeScript = `(function(){try{var s=localStorage.getItem('eduforge-theme');if(s!=='light')document.documentElement.classList.add('dark');}catch(e){document.documentElement.classList.add('dark');}})();`;
 
 interface RootLayoutProps {
   children: ReactNode;

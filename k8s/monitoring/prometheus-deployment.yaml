@@ -140,6 +140,20 @@ data:
           - record: edtech:request_rate:job
             expr: sum(rate(notification_service_http_requests_total[5m]))
             labels: { job: notification-service }
+          # search / tracking expose the GENERIC http_requests_total name (like
+          # content-service), so they are disambiguated by the `service` label.
+          - record: edtech:request_rate:job
+            expr: sum(rate(http_requests_total{service="search-service"}[5m]))
+            labels: { job: search-service }
+          - record: edtech:request_rate:job
+            expr: sum(rate(payment_service_http_requests_total[5m]))
+            labels: { job: payment-service }
+          - record: edtech:request_rate:job
+            expr: sum(rate(http_requests_total{service="tracking-service"}[5m]))
+            labels: { job: tracking-service }
+          - record: edtech:request_rate:job
+            expr: sum(rate(certification_service_http_requests_total[5m]))
+            labels: { job: certification-service }
           # Error rate (fraction of 5xx, 5m)
           - record: edtech:error_rate:job
             expr: sum(rate(api_gateway_http_requests_total{status=~"5.."}[5m])) / clamp_min(sum(rate(api_gateway_http_requests_total[5m])), 1)
@@ -159,6 +173,20 @@ data:
           - record: edtech:error_rate:job
             expr: sum(rate(notification_service_http_requests_total{status=~"5.."}[5m])) / clamp_min(sum(rate(notification_service_http_requests_total[5m])), 1)
             labels: { job: notification-service }
+          # Status label differs per runtime: Python services use `status`,
+          # Node services (search/tracking, like content) use `status_code`.
+          - record: edtech:error_rate:job
+            expr: sum(rate(http_requests_total{service="search-service",status_code=~"5.."}[5m])) / clamp_min(sum(rate(http_requests_total{service="search-service"}[5m])), 1)
+            labels: { job: search-service }
+          - record: edtech:error_rate:job
+            expr: sum(rate(payment_service_http_requests_total{status=~"5.."}[5m])) / clamp_min(sum(rate(payment_service_http_requests_total[5m])), 1)
+            labels: { job: payment-service }
+          - record: edtech:error_rate:job
+            expr: sum(rate(http_requests_total{service="tracking-service",status_code=~"5.."}[5m])) / clamp_min(sum(rate(http_requests_total{service="tracking-service"}[5m])), 1)
+            labels: { job: tracking-service }
+          - record: edtech:error_rate:job
+            expr: sum(rate(certification_service_http_requests_total{status=~"5.."}[5m])) / clamp_min(sum(rate(certification_service_http_requests_total[5m])), 1)
+            labels: { job: certification-service }
           # p99 latency (seconds, 5m)
           - record: edtech:latency_p99:job
             expr: histogram_quantile(0.99, sum by (le) (rate(api_gateway_http_request_duration_seconds_bucket[5m])))
@@ -178,6 +206,18 @@ data:
           - record: edtech:latency_p99:job
             expr: histogram_quantile(0.99, sum by (le) (rate(notification_service_http_request_duration_seconds_bucket[5m])))
             labels: { job: notification-service }
+          - record: edtech:latency_p99:job
+            expr: histogram_quantile(0.99, sum by (le) (rate(http_request_duration_seconds_bucket{service="search-service"}[5m])))
+            labels: { job: search-service }
+          - record: edtech:latency_p99:job
+            expr: histogram_quantile(0.99, sum by (le) (rate(payment_service_http_request_duration_seconds_bucket[5m])))
+            labels: { job: payment-service }
+          - record: edtech:latency_p99:job
+            expr: histogram_quantile(0.99, sum by (le) (rate(http_request_duration_seconds_bucket{service="tracking-service"}[5m])))
+            labels: { job: tracking-service }
+          - record: edtech:latency_p99:job
+            expr: histogram_quantile(0.99, sum by (le) (rate(certification_service_http_request_duration_seconds_bucket[5m])))
+            labels: { job: certification-service }
           # p50 latency (seconds, 5m)
           - record: edtech:latency_p50:job
             expr: histogram_quantile(0.50, sum by (le) (rate(api_gateway_http_request_duration_seconds_bucket[5m])))
@@ -197,6 +237,18 @@ data:
           - record: edtech:latency_p50:job
             expr: histogram_quantile(0.50, sum by (le) (rate(notification_service_http_request_duration_seconds_bucket[5m])))
             labels: { job: notification-service }
+          - record: edtech:latency_p50:job
+            expr: histogram_quantile(0.50, sum by (le) (rate(http_request_duration_seconds_bucket{service="search-service"}[5m])))
+            labels: { job: search-service }
+          - record: edtech:latency_p50:job
+            expr: histogram_quantile(0.50, sum by (le) (rate(payment_service_http_request_duration_seconds_bucket[5m])))
+            labels: { job: payment-service }
+          - record: edtech:latency_p50:job
+            expr: histogram_quantile(0.50, sum by (le) (rate(http_request_duration_seconds_bucket{service="tracking-service"}[5m])))
+            labels: { job: tracking-service }
+          - record: edtech:latency_p50:job
+            expr: histogram_quantile(0.50, sum by (le) (rate(certification_service_http_request_duration_seconds_bucket[5m])))
+            labels: { job: certification-service }
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim

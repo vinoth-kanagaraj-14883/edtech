@@ -294,6 +294,18 @@ services:
       OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
     ports:
       - "8090:8090"
+    volumes:
+      # Grants the Docker-level chaos scenarios (kill / freeze / CPU quota /
+      # memory limit / network partition) the ability to act on sibling
+      # containers. Without this mount those scenarios report "docker
+      # unavailable" and only the Redis-flag application scenarios work.
+      #
+      # SECURITY: access to the Docker socket is equivalent to root on the host.
+      # That is acceptable for a local chaos-engineering sandbox, but do NOT ship
+      # this mount to a shared or production environment — there, run the chaos
+      # scenarios through the Kubernetes backend with a scoped ServiceAccount
+      # instead. Set CHAOS_DISABLE_DOCKER=1 to opt out while keeping the mount.
+      - /var/run/docker.sock:/var/run/docker.sock
     depends_on:
       redis:
         condition: service_healthy
