@@ -6,7 +6,7 @@ import DeleteCourseButton from '@/components/DeleteCourseButton';
 import EnrollButton from '@/components/EnrollButton';
 import ProgressBar from '@/components/ProgressBar';
 import StarRating from '@/components/StarRating';
-import { getCourse } from '@/lib/api';
+import { getCourse, getEnrolledCourses } from '@/lib/api';
 import {
   coverGradient,
   derivedRating,
@@ -28,8 +28,18 @@ export default async function CourseDetailPage({ params }: CourseDetailPageProps
   const { token, user } = requireServerAuth();
 
   let course;
+  // course-service's course DTO carries no enrolment state, so `course.enrolled`
+  // was always undefined here and the page offered "Enroll & pay" even to
+  // learners who already owned the course. On a paid course that meant charging
+  // them a second time before the API answered 409. Resolve the real state by
+  // cross-referencing the learner's enrolments. Failing soft is fine: the worst
+  // case is the previous behaviour, and the 409 is now handled gracefully.
+  let enrolledCourses: Awaited<ReturnType<typeof getEnrolledCourses>> = [];
   try {
-    course = await getCourse(params.id, { token });
+    [course, enrolledCourses] = await Promise.all([
+      getCourse(params.id, { token }),
+      getEnrolledCourses({ token }).catch(() => [])
+    ]);
   } catch (error) {
     return (
       <div
@@ -53,6 +63,12 @@ export default async function CourseDetailPage({ params }: CourseDetailPageProps
   const gradient = coverGradient(course.id);
   const outcomes = learningOutcomes(course);
   const totalMinutes = course.lessons.reduce((sum, lesson) => sum + (lesson.durationMinutes ?? 0), 0);
+
+  // Authoritative enrolment state: trust the course payload if it says enrolled,
+  // otherwise fall back to whether this course appears in the learner's list.
+  const enrolledMatch = enrolledCourses.find((entry) => entry.id === course.id);
+  const isEnrolled = Boolean(course.enrolled) || Boolean(enrolledMatch);
+  const progress = course.progress ?? enrolledMatch?.progress ?? enrolledMatch?.enrollment?.progress;
 
   return (
     <div className="space-y-10">
@@ -129,17 +145,17 @@ export default async function CourseDetailPage({ params }: CourseDetailPageProps
                     <DeleteCourseButton courseId={course.id} redirectTo="/courses" />
                   </div>
                 ) : (
-                  <EnrollButton courseId={course.id} enrolled={course.enrolled} />
+                  <EnrollButton courseId={course.id} enrolled={isEnrolled} price={course.price ?? 0} />
                 )}
 
                 {course.lessons[0] ? (
                   <Link href={`/courses/${course.id}/lessons/${course.lessons[0].id}`} className="link-button w-full">
-                    {course.enrolled ? 'Continue learning' : 'Preview first lesson'}
+                    {isEnrolled ? 'Continue learning' : 'Preview first lesson'}
                   </Link>
                 ) : null}
 
-                {typeof course.progress === 'number' && course.progress > 0 ? (
-                  <ProgressBar value={course.progress} label="Your progress" />
+                {typeof progress === 'number' && progress > 0 ? (
+                  <ProgressBar value={progress} label="Your progress" />
                 ) : null}
 
                 <ul className="space-y-2.5 border-t border-hairline pt-4 text-sm text-content-muted">

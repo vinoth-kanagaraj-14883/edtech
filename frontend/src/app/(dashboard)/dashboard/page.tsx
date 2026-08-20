@@ -2,10 +2,11 @@ import Link from 'next/link';
 
 import BadgeShelf from '@/components/BadgeShelf';
 import ContinueLearningHero from '@/components/ContinueLearningHero';
+import CertificateShelf from '@/components/CertificateShelf';
 import CourseCard from '@/components/CourseCard';
 import LevelProgress from '@/components/LevelProgress';
 import MetricOrbs from '@/components/MetricOrbs';
-import { getCurrentUser, getEnrolledCourses, getRecentActivity } from '@/lib/api';
+import { getCurrentUser, getEnrolledCoursesDetailed, getMyCertificates, getRecentActivity } from '@/lib/api';
 import { buildLearnerStats } from '@/lib/gamification';
 import { requireServerAuth } from '@/lib/server-auth';
 
@@ -18,15 +19,17 @@ const ACTIVITY_TONE: Record<string, string> = {
 
 export default async function DashboardPage() {
   const { token, user: fallbackUser } = requireServerAuth();
-  const [userResult, courseResult, activityResult] = await Promise.allSettled([
+  const [userResult, courseResult, activityResult, certificateResult] = await Promise.allSettled([
     getCurrentUser({ token }),
-    getEnrolledCourses({ token }),
-    getRecentActivity({ token })
+    getEnrolledCoursesDetailed({ token }),
+    getRecentActivity({ token }),
+    getMyCertificates({ token })
   ]);
 
   const user = userResult.status === 'fulfilled' ? userResult.value : fallbackUser;
   const courses = courseResult.status === 'fulfilled' ? courseResult.value : [];
   const activity = activityResult.status === 'fulfilled' ? activityResult.value : [];
+  const certificates = certificateResult.status === 'fulfilled' ? certificateResult.value : [];
 
   // Everything below is derived from real enrollment/lesson data — see
   // lib/gamification.ts. Nothing is fabricated when the data is missing.
@@ -160,6 +163,7 @@ export default async function DashboardPage() {
         {/* Reward rail */}
         <aside className="space-y-5 lg:sticky lg:top-24" aria-label="Progress and achievements">
           <LevelProgress level={stats.level} />
+          <CertificateShelf certificates={certificates} />
           <BadgeShelf badges={stats.badges} />
         </aside>
       </div>

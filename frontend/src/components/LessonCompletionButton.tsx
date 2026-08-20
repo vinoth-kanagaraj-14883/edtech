@@ -10,9 +10,11 @@ interface LessonCompletionButtonProps {
   courseId: string;
   lessonId: string;
   completed?: boolean;
+  /** Lesson count for the course, so course-service can recompute progress %. */
+  totalLessons?: number;
 }
 
-export default function LessonCompletionButton({ courseId, lessonId, completed }: LessonCompletionButtonProps) {
+export default function LessonCompletionButton({ courseId, lessonId, completed, totalLessons }: LessonCompletionButtonProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
@@ -21,7 +23,7 @@ export default function LessonCompletionButton({ courseId, lessonId, completed }
     try {
       setLoading(true);
       setError(null);
-      await markLessonComplete(courseId, lessonId);
+      await markLessonComplete(courseId, lessonId, {}, totalLessons);
       router.refresh();
     } catch (completionError) {
       setError(completionError instanceof Error ? completionError.message : 'Unable to mark the lesson complete.');

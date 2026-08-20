@@ -86,6 +86,9 @@ services:
     volumes:
       - ./observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - ./observability/recording-rules.yml:/etc/prometheus/recording-rules.yml:ro
+      # The detection layer. Without this mount Prometheus starts but fails to
+      # load its rule_files entry, so no alert can ever fire.
+      - ./observability/alert-rules.yml:/etc/prometheus/alert-rules.yml:ro
     ports:
       - "${PROMETHEUS_PORT:-9090}:9090"
     depends_on:

@@ -60,7 +60,9 @@ export default function () {
 
   group('01_auth', function () {
     const email = `learner_${__VU}_${Math.floor(Math.random() * 1e6)}@demo.io`;
-    const payload = JSON.stringify({ email, password: 'Demo!2345', name: 'Demo Learner' });
+    // Must be `full_name` to satisfy user-service's UserCreate schema; `name`
+    // yields a 422 and an empty token, which 401s the rest of the journey.
+    const payload = JSON.stringify({ email, password: 'Demo!2345', full_name: 'Demo Learner' });
     const opts = tag('auth');
     opts.headers['Content-Type'] = 'application/json';
 

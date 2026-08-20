@@ -1,6 +1,6 @@
 import type { NextFunction, Request, Response } from 'express';
 import { Router } from 'express';
-import { validate as isUuid } from 'uuid';
+import { isUuidLike as isUuid } from '../uuid';
 
 import { AppDataSource } from '../database';
 import { Content, ContentType } from '../models/Content';

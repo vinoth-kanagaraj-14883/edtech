@@ -43,6 +43,23 @@ management:
   metrics:
     tags:
       application: ${spring.application.name}
+    # Emit Prometheus histogram buckets for HTTP server timings.
+    #
+    # Without this, Micrometer exports only count/sum/max for
+    # http.server.requests — there is no `http_server_requests_seconds_bucket`
+    # series, so `histogram_quantile()` returns nothing and course-service has
+    # NO latency SLI at all. The normalized `edtech:latency_p99:job` rule for
+    # course-service was silently empty, which meant no latency alert could ever
+    # fire for it — including during a chaos experiment aimed straight at it.
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+      # Cap the bucket range so the series count stays sane; anything slower
+      # than 10s is already far past the objective.
+      minimum-expected-value:
+        http.server.requests: 5ms
+      maximum-expected-value:
+        http.server.requests: 10s
   prometheus:
     metrics:
       export:

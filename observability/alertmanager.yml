@@ -1,9 +1,73 @@
+# Routing for EduForge alerts.
+#
+# There is no real paging integration here on purpose — this is a local chaos
+# sandbox. What matters is that alerts are grouped and labelled the way they
+# would be in production, so a game day exercises the routing logic and not just
+# the rule expressions. Swap a receiver's webhook for Slack/PagerDuty and the
+# route tree below is already correct.
+
 route:
   receiver: default-receiver
-  group_by: ['alertname']
+  # Group by service AND alertname so one degraded service produces one
+  # notification rather than one per rule that noticed it.
+  group_by: ['job', 'alertname']
   group_wait: 10s
   group_interval: 1m
   repeat_interval: 4h
 
+  routes:
+    # Chaos experiments are context, not incidents. Separate route with a long
+    # repeat so they annotate the timeline without adding noise.
+    - matchers:
+        - class = "chaos"
+      receiver: chaos-context
+      group_by: ['scenario', 'target']
+      group_wait: 0s
+      repeat_interval: 12h
+
+    # Revenue impact gets its own receiver: a failing checkout is not the same
+    # class of problem as a slow catalogue, even at the same severity.
+    - matchers:
+        - impact = "revenue"
+      receiver: revenue-critical
+      group_wait: 0s
+      repeat_interval: 30m
+
+    - matchers:
+        - severity = "critical"
+      receiver: critical-receiver
+      group_wait: 0s
+      repeat_interval: 1h
+
+    - matchers:
+        - severity = "warning"
+      receiver: warning-receiver
+      repeat_interval: 6h
+
+# Suppress the noise a single root cause creates in several rules at once.
+inhibit_rules:
+  # A hung service also breaches the latency SLO. Keep the diagnosis, drop the
+  # symptom — ServiceHungNotDown tells you what to do, LatencySLOBreach does not.
+  - source_matchers: [class = "hung"]
+    target_matchers: [slo = "latency"]
+    equal: ['job']
+
+  # A process that is down will also look like it is missing its SLOs.
+  - source_matchers: [alertname = "ServiceUnavailable"]
+    target_matchers: [severity =~ "warning|critical"]
+    equal: ['job']
+
+  # Fast burn implies slow burn; only page once.
+  - source_matchers: [alertname = "ErrorBudgetFastBurn"]
+    target_matchers: [alertname = "ErrorBudgetSlowBurn"]
+    equal: ['job']
+
 receivers:
+  # Alertmanager requires every route's receiver to exist. These are intentionally
+  # sink receivers (no notifier configured) so nothing is dropped silently and the
+  # full alert set stays visible at http://localhost:9093.
   - name: default-receiver
+  - name: critical-receiver
+  - name: warning-receiver
+  - name: revenue-critical
+  - name: chaos-context

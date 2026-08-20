@@ -4,6 +4,15 @@ global:
 
 rule_files:
   - /etc/prometheus/recording-rules.yml
+  - /etc/prometheus/alert-rules.yml
+
+# Without this block Prometheus evaluates alert rules but has nowhere to send
+# them, so Alertmanager sits running and permanently empty — which is how the
+# stack shipped: plenty of data, no indication that anything was ever wrong.
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ['alertmanager:9093']
 
 scrape_configs:
   - job_name: prometheus

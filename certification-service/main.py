@@ -371,6 +371,26 @@ async def issue_certificate(
     return CertificateResponse.model_validate(certificate)
 
 
+@app.get('/certificates', response_model=list[CertificateResponse])
+async def list_my_certificates(
+    request: Request,
+    session: AsyncSession = Depends(get_session),
+) -> list[CertificateResponse]:
+    """The authenticated learner's certificates.
+
+    `/users/{user_id}/certificates` exists but is unreachable through the API
+    gateway: the gateway routes every `/api/users/*` prefix to user-service, so
+    this service's own user-scoped path never receives the request. This endpoint
+    resolves the learner from the gateway-injected identity instead, mirroring
+    payment-service's `GET /payments`, so the frontend has a way to list them.
+    """
+    user_id = resolve_user_id(request, None)
+    result = await session.scalars(
+        select(Certificate).where(Certificate.user_id == user_id).order_by(Certificate.issued_at.desc())
+    )
+    return [CertificateResponse.model_validate(certificate) for certificate in result.all()]
+
+
 @app.get('/certificates/{id}', response_model=CertificateResponse)
 async def get_certificate(id: str, session: AsyncSession = Depends(get_session)) -> CertificateResponse:
     certificate = await session.get(Certificate, id)

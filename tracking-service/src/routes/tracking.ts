@@ -343,6 +343,25 @@ router.get('/users/:userId', async (request, response, next) => {
 router.get('/users/:userId/courses/:courseId', async (request, response, next) => {
   try {
     const { userId, courseId } = request.params;
+
+    // Reconcile on read. Certificate issuance normally happens on the
+    // `lesson.completed` event, but that is a single point of failure: if the
+    // final event is lost — a dropped request, an injected fault, a browser
+    // closed mid-flight — the learner finishes the course and no certificate is
+    // ever issued, with nothing to retry it. Re-running the check here means
+    // simply viewing progress repairs that. It is safe to call repeatedly: the
+    // check exits early unless every lesson is complete, and the unique
+    // (userId, courseId) index makes issuance idempotent.
+    try {
+      await runCompletionCheck(userId, courseId);
+    } catch (error) {
+      logger.warn('reconcile-on-read completion check failed', {
+        user_id: userId,
+        course_id: courseId,
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+
     const progress = await buildCourseProgress(userId, courseId);
     return response.json(progress);
   } catch (error) {

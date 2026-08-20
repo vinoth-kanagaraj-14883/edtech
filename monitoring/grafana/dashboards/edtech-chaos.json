@@ -3,7 +3,10 @@
     "list": [
       {
         "builtIn": 1,
-        "datasource": { "type": "grafana", "uid": "-- Grafana --" },
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
         "enable": true,
         "hide": true,
         "iconColor": "rgba(0, 211, 255, 1)",
@@ -12,7 +15,10 @@
       },
       {
         "name": "Chaos experiments",
-        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
         "enable": true,
         "iconColor": "rgba(255, 96, 96, 1)",
         "expr": "chaos_scenario_active > 0",
@@ -29,30 +35,347 @@
   "id": null,
   "links": [],
   "liveNow": false,
-  "description": "Cause and effect for chaos experiments. The top row shows what is being injected right now; the bottom rows show what it did to the platform. Red bands on every panel mark active chaos windows.",
+  "description": "Detection first: the top row says whether anything is wrong. Below it, what is being injected and what it did to the platform. Red bands mark active chaos windows.",
   "panels": [
     {
       "type": "row",
+      "title": "Is anything wrong right now?",
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "id": 200,
+      "collapsed": false,
+      "panels": []
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "id": 201,
+      "title": "Firing problems",
+      "type": "stat",
+      "description": "Critical + warning alerts currently firing. Chaos context alerts are excluded so this counts problems, not experiments.",
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 0,
+        "y": 1
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 1
+              },
+              {
+                "color": "red",
+                "value": 3
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "textMode": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "refId": "A",
+          "expr": "count(ALERTS{alertstate=\"firing\", severity=~\"critical|warning\"}) or vector(0)"
+        }
+      ]
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "id": 202,
+      "title": "Critical",
+      "type": "stat",
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 4,
+        "y": 1
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "refId": "A",
+          "expr": "count(ALERTS{alertstate=\"firing\", severity=\"critical\"}) or vector(0)"
+        }
+      ]
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "id": 203,
+      "title": "What is wrong",
+      "type": "table",
+      "description": "Every firing alert with its service and severity. This is the panel that answers 'is there a problem?' without reading a single graph.",
+      "gridPos": {
+        "h": 8,
+        "w": 16,
+        "x": 8,
+        "y": 1
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "left",
+            "filterable": true
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "severity"
+            },
+            "properties": [
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-background"
+                }
+              },
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "critical": {
+                        "text": "CRITICAL",
+                        "color": "red",
+                        "index": 0
+                      },
+                      "warning": {
+                        "text": "warning",
+                        "color": "orange",
+                        "index": 1
+                      },
+                      "info": {
+                        "text": "chaos",
+                        "color": "blue",
+                        "index": 2
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "sortBy": [
+          {
+            "displayName": "severity",
+            "desc": true
+          }
+        ]
+      },
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "__name__": true,
+              "Value": true,
+              "alertstate": true,
+              "instance": true,
+              "slo": true,
+              "class": true,
+              "impact": true
+            },
+            "renameByName": {
+              "alertname": "Problem",
+              "job": "Service",
+              "severity": "Severity",
+              "scenario": "Chaos scenario",
+              "target": "Target"
+            }
+          }
+        }
+      ],
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "refId": "A",
+          "format": "table",
+          "instant": true,
+          "expr": "ALERTS{alertstate=\"firing\"}"
+        }
+      ]
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "id": 204,
+      "title": "Problem timeline",
+      "type": "timeseries",
+      "description": "Firing alerts over time. Compare with the red chaos bands: a problem inside a band is your experiment, a problem outside one is real.",
+      "gridPos": {
+        "h": 4,
+        "w": 8,
+        "x": 0,
+        "y": 5
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 30,
+            "showPoints": "never",
+            "lineInterpolation": "stepAfter"
+          },
+          "min": 0,
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "showLegend": true,
+          "calcs": [
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "refId": "A",
+          "legendFormat": "{{alertname}} \u00b7 {{job}}",
+          "expr": "ALERTS{alertstate=\"firing\", severity=~\"critical|warning\"}"
+        }
+      ]
+    },
+    {
+      "type": "row",
       "title": "What is being injected",
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 9
+      },
       "id": 100,
       "collapsed": false,
       "panels": []
     },
     {
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "id": 1,
       "title": "Active faults",
       "type": "stat",
-      "gridPos": { "h": 4, "w": 4, "x": 0, "y": 1 },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 0,
+        "y": 10
+      },
       "fieldConfig": {
         "defaults": {
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "green", "value": null },
-              { "color": "orange", "value": 1 },
-              { "color": "red", "value": 3 }
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 1
+              },
+              {
+                "color": "red",
+                "value": 3
+              }
             ]
           },
           "unit": "short"
@@ -62,28 +385,61 @@
       "options": {
         "colorMode": "background",
         "graphMode": "area",
-        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
         "textMode": "auto"
       },
       "targets": [
         {
-          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
           "expr": "chaos_service_active_scenarios",
           "refId": "A"
         }
       ]
     },
     {
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "id": 2,
       "title": "Auto mode (chaos monkey)",
       "type": "stat",
-      "gridPos": { "h": 4, "w": 4, "x": 4, "y": 1 },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 4,
+        "y": 10
+      },
       "fieldConfig": {
         "defaults": {
           "mappings": [
-            { "options": { "0": { "text": "OFF", "color": "green" } }, "type": "value" },
-            { "options": { "1": { "text": "ON", "color": "orange" } }, "type": "value" }
+            {
+              "options": {
+                "0": {
+                  "text": "OFF",
+                  "color": "green"
+                }
+              },
+              "type": "value"
+            },
+            {
+              "options": {
+                "1": {
+                  "text": "ON",
+                  "color": "orange"
+                }
+              },
+              "type": "value"
+            }
           ]
         },
         "overrides": []
@@ -91,24 +447,41 @@
       "options": {
         "colorMode": "background",
         "graphMode": "none",
-        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
         "textMode": "auto"
       },
       "targets": [
         {
-          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
           "expr": "chaos_service_auto_mode_enabled",
           "refId": "A"
         }
       ]
     },
     {
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "id": 3,
       "title": "Currently active scenarios",
       "description": "One row per injected fault, with the backend that applied it and the service it targets.",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 16, "x": 8, "y": 1 },
+      "gridPos": {
+        "h": 8,
+        "w": 16,
+        "x": 8,
+        "y": 10
+      },
       "fieldConfig": {
         "defaults": {
           "custom": {
@@ -126,12 +499,25 @@
         "overrides": []
       },
       "options": {
-        "legend": { "displayMode": "table", "placement": "right", "showLegend": true, "calcs": ["max"] },
-        "tooltip": { "mode": "multi", "sort": "desc" }
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "showLegend": true,
+          "calcs": [
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
       },
       "targets": [
         {
-          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
           "expr": "chaos_scenario_active > 0",
           "legendFormat": "{{scenario}} [{{category}}] -> {{target}}",
           "refId": "A"
@@ -139,25 +525,47 @@
       ]
     },
     {
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "id": 4,
       "title": "Experiment starts / stops",
       "type": "timeseries",
-      "gridPos": { "h": 4, "w": 8, "x": 0, "y": 5 },
+      "gridPos": {
+        "h": 4,
+        "w": 8,
+        "x": 0,
+        "y": 14
+      },
       "fieldConfig": {
         "defaults": {
-          "custom": { "drawStyle": "bars", "fillOpacity": 70, "lineWidth": 1 },
+          "custom": {
+            "drawStyle": "bars",
+            "fillOpacity": 70,
+            "lineWidth": 1
+          },
           "unit": "short"
         },
         "overrides": []
       },
       "options": {
-        "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true },
-        "tooltip": { "mode": "multi", "sort": "desc" }
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
       },
       "targets": [
         {
-          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
           "expr": "sum by (action) (rate(chaos_service_scenario_runs_total[5m]))",
           "legendFormat": "{{action}}",
           "refId": "A"
@@ -167,32 +575,64 @@
     {
       "type": "row",
       "title": "What it did to the platform",
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 9 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 18
+      },
       "id": 101,
       "collapsed": false,
       "panels": []
     },
     {
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "id": 5,
       "title": "p99 latency by service (chaos windows shaded)",
       "description": "Compare the red chaos bands with the latency response. A band with no bump means the fault was absorbed; a bump that outlasts the band means slow recovery.",
       "type": "timeseries",
-      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 10 },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 0,
+        "y": 19
+      },
       "fieldConfig": {
         "defaults": {
-          "custom": { "drawStyle": "line", "lineWidth": 2, "fillOpacity": 8, "showPoints": "never" },
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 8,
+            "showPoints": "never"
+          },
           "unit": "s"
         },
         "overrides": []
       },
       "options": {
-        "legend": { "displayMode": "table", "placement": "right", "showLegend": true, "calcs": ["max", "mean"] },
-        "tooltip": { "mode": "multi", "sort": "desc" }
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "showLegend": true,
+          "calcs": [
+            "max",
+            "mean"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
       },
       "targets": [
         {
-          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
           "expr": "edtech:latency_p99:job",
           "legendFormat": "{{job}}",
           "refId": "A"
@@ -200,27 +640,54 @@
       ]
     },
     {
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "id": 6,
       "title": "Error rate by service (chaos windows shaded)",
-      "description": "Note that the 'silent degradation' playbook deliberately produces NO error-rate movement — that is the point of it.",
+      "description": "Note that the 'silent degradation' playbook deliberately produces NO error-rate movement \u2014 that is the point of it.",
       "type": "timeseries",
-      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 10 },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 12,
+        "y": 19
+      },
       "fieldConfig": {
         "defaults": {
-          "custom": { "drawStyle": "line", "lineWidth": 2, "fillOpacity": 8, "showPoints": "never" },
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 8,
+            "showPoints": "never"
+          },
           "min": 0,
           "unit": "percentunit"
         },
         "overrides": []
       },
       "options": {
-        "legend": { "displayMode": "table", "placement": "right", "showLegend": true, "calcs": ["max", "mean"] },
-        "tooltip": { "mode": "multi", "sort": "desc" }
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "showLegend": true,
+          "calcs": [
+            "max",
+            "mean"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
       },
       "targets": [
         {
-          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
           "expr": "edtech:error_rate:job",
           "legendFormat": "{{job}}",
           "refId": "A"
@@ -228,12 +695,20 @@
       ]
     },
     {
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "id": 7,
       "title": "Service availability (up)",
-      "description": "Drops to 0 for container-stop, freeze and network-partition scenarios. A frozen container may still report up=1 while serving nothing — that contrast is the lesson.",
+      "description": "Drops to 0 for container-stop, freeze and network-partition scenarios. A frozen container may still report up=1 while serving nothing \u2014 that contrast is the lesson.",
       "type": "timeseries",
-      "gridPos": { "h": 7, "w": 12, "x": 0, "y": 19 },
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 0,
+        "y": 28
+      },
       "fieldConfig": {
         "defaults": {
           "custom": {
@@ -250,12 +725,25 @@
         "overrides": []
       },
       "options": {
-        "legend": { "displayMode": "table", "placement": "right", "showLegend": true, "calcs": ["min"] },
-        "tooltip": { "mode": "multi", "sort": "desc" }
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "showLegend": true,
+          "calcs": [
+            "min"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
       },
       "targets": [
         {
-          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
           "expr": "up{job=~\"api-gateway|user-service|course-service|content-service|quiz-service|notification-service|search-service|payment-service|tracking-service|certification-service\"}",
           "legendFormat": "{{job}}",
           "refId": "A"
@@ -263,27 +751,53 @@
       ]
     },
     {
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "id": 8,
       "title": "Request rate by service",
       "description": "Traffic should stay flat during most experiments. A drop means callers gave up or the load generator itself is failing.",
       "type": "timeseries",
-      "gridPos": { "h": 7, "w": 12, "x": 12, "y": 19 },
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 12,
+        "y": 28
+      },
       "fieldConfig": {
         "defaults": {
-          "custom": { "drawStyle": "line", "lineWidth": 2, "fillOpacity": 8, "showPoints": "never" },
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 8,
+            "showPoints": "never"
+          },
           "min": 0,
           "unit": "reqps"
         },
         "overrides": []
       },
       "options": {
-        "legend": { "displayMode": "table", "placement": "right", "showLegend": true, "calcs": ["mean"] },
-        "tooltip": { "mode": "multi", "sort": "desc" }
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "showLegend": true,
+          "calcs": [
+            "mean"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
       },
       "targets": [
         {
-          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
           "expr": "edtech:request_rate:job",
           "legendFormat": "{{job}}",
           "refId": "A"
@@ -294,9 +808,19 @@
   "refresh": "10s",
   "schemaVersion": 39,
   "style": "dark",
-  "tags": ["edtech", "chaos", "sre", "resilience"],
-  "templating": { "list": [] },
-  "time": { "from": "now-1h", "to": "now" },
+  "tags": [
+    "edtech",
+    "chaos",
+    "sre",
+    "resilience"
+  ],
+  "templating": {
+    "list": []
+  },
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
   "timezone": "",
   "title": "EduForge - Chaos Engineering",
   "uid": "edtech-chaos",

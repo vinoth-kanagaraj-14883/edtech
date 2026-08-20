@@ -125,7 +125,16 @@ export default async function LessonPage({ params }: LessonPageProps) {
                 Mark this lesson complete to update your dashboard and continue your learning path.
               </p>
               <div className="mt-5">
-                <LessonCompletionButton courseId={course.id} lessonId={lesson.id} completed={lesson.completed} />
+                {/* Completion state comes from the course payload, which has the
+                    learner's progress merged in. `getLesson` returns the lesson
+                    from the catalogue and knows nothing about who is reading it,
+                    so its `completed` is always false. */}
+                <LessonCompletionButton
+                  courseId={course.id}
+                  lessonId={lesson.id}
+                  completed={(currentIndex >= 0 ? course.lessons[currentIndex]?.completed : undefined) ?? lesson.completed}
+                  totalLessons={course.lessons.length}
+                />
               </div>
             </div>
           </aside>

@@ -116,7 +116,12 @@ export default function () {
 
   group('01_auth', function () {
     const email = `learner_${__VU}_${Math.floor(Math.random() * 1e6)}@demo.io`;
-    const payload = JSON.stringify({ email, password: 'Demo!2345', name: 'Demo Learner' });
+    // user-service's UserCreate schema requires `full_name` (min_length=1).
+    // Sending `name` instead makes /auth/register return 422, which leaves the
+    // token empty and then 401s every authenticated call downstream — the whole
+    // journey silently collapses to auth-only traffic. Keep this field name in
+    // sync with user-service/schemas.py.
+    const payload = JSON.stringify({ email, password: 'Demo!2345', full_name: 'Demo Learner' });
     const opts = tag('auth');
     opts.headers['Content-Type'] = 'application/json';
 

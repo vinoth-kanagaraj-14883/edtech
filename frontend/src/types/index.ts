@@ -119,6 +119,33 @@ export interface Course {
   enrollment?: Enrollment;
 }
 
+/** Mirrors certification-service's CertificateResponse. */
+export interface Certificate {
+  id: string;
+  certificateNumber: string;
+  userId?: string;
+  userName?: string | null;
+  courseId: string;
+  courseTitle?: string | null;
+  issuedAt?: string;
+  status: string;
+}
+
+/** Mirrors payment-service's PaymentResponse (serialised with camelCase aliases). */
+export interface Payment {
+  id: string;
+  userId?: string;
+  courseId: string;
+  amount: number;
+  currency: string;
+  /** payment-service reports e.g. `succeeded` / `failed` / `refunded`. */
+  status: string;
+  provider?: string;
+  providerRef?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 export interface Notification {
   id: string;
   title: string;

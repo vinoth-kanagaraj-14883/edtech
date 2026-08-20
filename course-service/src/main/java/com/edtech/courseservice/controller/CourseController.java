@@ -1,6 +1,7 @@
 package com.edtech.courseservice.controller;
 
 import com.edtech.courseservice.model.Course;
+import com.edtech.courseservice.model.CourseProgress;
 import com.edtech.courseservice.model.Enrollment;
 import com.edtech.courseservice.service.CourseService;
 import jakarta.validation.Valid;
@@ -164,6 +165,54 @@ public class CourseController {
     @GetMapping("/users/{userId}/enrollments")
     public List<Enrollment> getUserEnrollments(@PathVariable UUID userId) {
         return courseService.getUserEnrollments(userId);
+    }
+
+    /**
+     * Marks a lesson complete for the authenticated learner and recomputes their
+     * course progress. This is the endpoint that was missing: content-service's
+     * `/lessons/{id}/complete` only acknowledged the click without storing
+     * anything, so progress never persisted and the XP/streak layer that derives
+     * from completion timestamps stayed at zero.
+     *
+     * `totalLessons` comes from the caller because the lesson catalogue lives in
+     * content-service; it is optional and only used to recompute the percentage.
+     */
+    @PostMapping("/courses/{id}/lessons/{lessonId}/complete")
+    public ResponseEntity<CourseProgress> completeLesson(
+            @PathVariable UUID id,
+            @PathVariable UUID lessonId,
+            @RequestHeader(value = "X-User-Id", required = false) UUID headerUserId,
+            @RequestBody(required = false) LessonCompletionRequest request) {
+        UUID userId = headerUserId != null ? headerUserId
+                : (request != null ? request.userId() : null);
+        if (userId == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "userId is required");
+        }
+        Integer totalLessons = request != null ? request.totalLessons() : null;
+        return ResponseEntity.ok(courseService.completeLesson(id, userId, lessonId, totalLessons));
+    }
+
+    /** Which lessons the authenticated learner has completed in this course. */
+    @GetMapping("/courses/{id}/progress")
+    public Map<String, Object> getLessonProgress(
+            @PathVariable UUID id,
+            @RequestHeader(value = "X-User-Id", required = false) UUID headerUserId,
+            @RequestParam(required = false) UUID userId) {
+        UUID resolvedUserId = headerUserId != null ? headerUserId : userId;
+        if (resolvedUserId == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "userId is required");
+        }
+        List<CourseProgress> progress = courseService.getLessonProgress(id, resolvedUserId);
+        return Map.of(
+                "courseId", id,
+                "completedLessonIds", progress.stream()
+                        .filter(p -> p.getCompletedAt() != null)
+                        .map(CourseProgress::getLessonId)
+                        .toList(),
+                "completions", progress);
+    }
+
+    public record LessonCompletionRequest(UUID userId, Integer totalLessons) {
     }
 
     private Course toCourse(CourseRequest request) {

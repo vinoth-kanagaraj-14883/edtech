@@ -21,7 +21,6 @@ import java.util.UUID;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import org.hibernate.annotations.UuidGenerator;
 
 @Entity
 @Table(
@@ -37,8 +36,18 @@ import org.hibernate.annotations.UuidGenerator;
 @NoArgsConstructor
 public class Course {
 
+    // NOTE: deliberately NOT @UuidGenerator. Hibernate 6's @UuidGenerator always
+    // generates a fresh UUID on persist, silently discarding an id that was set
+    // explicitly. That broke two things at once:
+    //   1. DataSeeder's stable ids (11111111-…) never landed, so its
+    //      `existsById` idempotency check never matched and the seeder re-created
+    //      all 8 demo courses on EVERY startup (we observed 1008 rows).
+    //   2. content-service seeds its lessons against those same stable course
+    //      ids, so every lesson pointed at a course id that did not exist and
+    //      the whole catalogue appeared to have no lessons.
+    // Assigning in @PrePersist below keeps explicit ids while still generating
+    // one for courses created through the API.
     @Id
-    @UuidGenerator
     @Column(nullable = false, updatable = false)
     private UUID id;
 
@@ -81,6 +90,11 @@ public class Course {
 
     @PrePersist
     void onCreate() {
+        // Only generate when the caller did not supply one, so DataSeeder's
+        // stable ids survive and stay shared with content-service's lesson seeds.
+        if (this.id == null) {
+            this.id = UUID.randomUUID();
+        }
         Instant now = Instant.now();
         this.createdAt = now;
         this.updatedAt = now;

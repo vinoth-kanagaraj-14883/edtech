@@ -1,0 +1,305 @@
+# Detection layer for EduForge.
+#
+# DESIGN NOTE — why these are mostly relative, not absolute.
+#
+# The first version of this file used flat thresholds (p99 > 1s, error > 1.44%).
+# Measured against the real platform they fired continuously with chaos switched
+# off, because the baseline is genuinely uneven:
+#
+#     api-gateway            p99 2.35s   error 3.1%
+#     payment-service        p99 6.35s
+#     user-service           p99 2.26s
+#     content/search/
+#     tracking/certification p99 ~0.005s
+#
+# An alert that is always on cannot indicate that something is wrong. A single
+# absolute number also cannot serve both a 5ms service and a 6s one. So the
+# primary detectors below compare each service against **its own** recent
+# behaviour, and fire on a regression. Absolute rules are kept only for states
+# that are catastrophic at any baseline (process gone, p99 in double-digit
+# seconds, a quarter of requests failing).
+#
+# Scenario -> alert mapping:
+#   *-latency, cache-miss, cpu-throttle ..... LatencyRegression
+#   silent-degradation (playbook) ........... SilentLatencyRegression
+#   *-error-storm ........................... ErrorRateRegression
+#   docker-container-stop ................... ServiceRefusingConnections
+#   docker-container-freeze ................. ServiceHungNotDown
+#   docker-network-partition ................ ServiceUnavailable
+#   docker-memory-limit ..................... ServiceCrashLooping
+#   payment-gateway-down / -latency ......... CheckoutFailureRate
+#   broken completion -> certificate chain .. CertificatePipelineStalled
+
+groups:
+  # ── Baselines ─────────────────────────────────────────────────────────────
+  # Each service's own recent normal. 6h is long enough that a 45s game-day step
+  # cannot meaningfully move it, so a step still reads as a regression against it.
+  - name: edtech-baselines
+    interval: 30s
+    rules:
+      - record: edtech:latency_p99_baseline:job
+        expr: avg_over_time(edtech:latency_p99:job[6h])
+
+      - record: edtech:error_rate_baseline:job
+        expr: avg_over_time(edtech:error_rate:job[6h])
+
+  # ── Regression detectors (the primary signal) ────────────────────────────
+  - name: edtech-regressions
+    interval: 15s
+    rules:
+      # `for: 1m` deliberately: game-day steps hold for 35-50s, so a longer
+      # window would let the whole playbook run without tripping anything.
+      - alert: LatencyRegression
+        expr: |
+          (
+            edtech:latency_p99:job > 2.5 * edtech:latency_p99_baseline:job
+            and
+            edtech:latency_p99:job > 0.25
+          )
+        for: 1m
+        labels:
+          severity: warning
+          detector: relative
+        annotations:
+          summary: "{{ $labels.job }} p99 is 2.5x its normal ({{ $value | humanizeDuration }})"
+          description: >-
+            Latency for {{ $labels.job }} has regressed well beyond its own
+            6h baseline. The 250ms floor means this is a real change, not a fast
+            service jittering by a few milliseconds.
+          runbook: "Grafana -> EduForge · Chaos Engineering. If no red band, this is not an experiment."
+
+      # The alert an error-rate-only setup sleeps straight through, and precisely
+      # what the `silent-degradation` playbook is built to produce: everything
+      # returns 200 and the product is materially worse to use.
+      - alert: SilentLatencyRegression
+        expr: |
+          (
+            edtech:latency_p99:job > 2.5 * edtech:latency_p99_baseline:job
+            and
+            edtech:latency_p99:job > 0.25
+            and
+            edtech:error_rate:job < 1.5 * clamp_min(edtech:error_rate_baseline:job, 0.005)
+          )
+        for: 1m
+        labels:
+          severity: warning
+          detector: relative
+          class: silent
+        annotations:
+          summary: "{{ $labels.job }} is slow but NOT failing ({{ $value | humanizeDuration }} p99)"
+          description: >-
+            Latency has regressed sharply while the error ratio stayed at its
+            normal level. Status codes, health checks and uptime monitors all
+            report healthy. This is the degradation class that only percentile
+            latency catches.
+
+      - alert: ErrorRateRegression
+        expr: |
+          (
+            edtech:error_rate:job > 3 * clamp_min(edtech:error_rate_baseline:job, 0.01)
+            and
+            edtech:error_rate:job > 0.05
+          )
+        for: 1m
+        labels:
+          severity: critical
+          detector: relative
+        annotations:
+          summary: "{{ $labels.job }} error ratio is {{ $value | humanizePercentage }} — 3x normal"
+          description: >-
+            Failures have regressed well past this service's own baseline.
+            Check whether a dependency is refusing connections before assuming
+            the service itself is at fault.
+
+  # ── Absolute floors: catastrophic at any baseline ────────────────────────
+  - name: edtech-absolute
+    interval: 15s
+    rules:
+      # `up == 0` cannot tell a stopped process from a frozen one — both fail the
+      # scrape. `scrape_duration_seconds` can: a refused connection fails
+      # immediately, whereas a SIGSTOPped process leaves the scrape hanging until
+      # the timeout. That distinction is the whole diagnosis, so it gets two
+      # alerts with two different runbooks rather than one vague "service down".
+      - alert: ServiceHungNotDown
+        expr: |
+          (
+            up{job=~".*-service|api-gateway"} == 0
+            and
+            scrape_duration_seconds >= 8
+          )
+        for: 45s
+        labels:
+          severity: critical
+          class: hung
+        annotations:
+          summary: "{{ $labels.job }} is HUNG — accepting connections, answering nothing"
+          description: >-
+            The scrape connected and then timed out, which means the process is
+            alive but not responding (frozen, deadlocked, or in a GC spiral).
+            Callers will block on their own timeouts rather than failing fast,
+            so their connection pools are filling right now. This is worse than
+            a crash: a crash sheds load, a hang absorbs it.
+          runbook: "Jaeger: service=api-gateway, minDuration=10s — client spans with no matching server span"
+
+      - alert: ServiceRefusingConnections
+        expr: |
+          (
+            up{job=~".*-service|api-gateway"} == 0
+            and
+            scrape_duration_seconds < 1
+          )
+        for: 45s
+        labels:
+          severity: critical
+          class: down
+        annotations:
+          summary: "{{ $labels.job }} is DOWN — connections refused"
+          description: >-
+            The scrape failed immediately, so the process is gone or the port is
+            closed. Callers fail fast, which is the better failure mode: check
+            whether the gateway's circuit breaker opened and contained it.
+          runbook: "Jaeger System Architecture — the node should have disappeared from the map"
+
+      # Catch-all for a failed scrape that is neither a clean refusal nor a clean
+      # timeout (DNS failure, network partition, TLS error).
+      - alert: ServiceUnavailable
+        expr: |
+          (
+            up{job=~".*-service|api-gateway"} == 0
+            and
+            scrape_duration_seconds >= 1
+            and
+            scrape_duration_seconds < 8
+          )
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "{{ $labels.job }} is unreachable"
+          description: >-
+            Scrape failed without a fast refusal or a full timeout — typically a
+            network partition or name-resolution failure. The process may still
+            be running and unaware that it is isolated.
+
+      - alert: LatencySevere
+        expr: edtech:latency_p99:job > 15
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "{{ $labels.job }} p99 is {{ $value | humanizeDuration }}"
+          description: >-
+            Double-digit-second p99 is user-abandonment territory regardless of
+            what this service's baseline happens to be.
+
+      - alert: ErrorRateSevere
+        expr: edtech:error_rate:job > 0.25
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "{{ $labels.job }} is failing {{ $value | humanizePercentage }} of requests"
+          description: "More than a quarter of requests are failing. Treat as an outage."
+
+      - alert: ServiceCrashLooping
+        # `docker-memory-limit` produces exactly this: the kernel OOM-kills with
+        # no warning in the application's own logs.
+        expr: changes(process_start_time_seconds{job=~".*-service|api-gateway"}[15m]) > 2
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "{{ $labels.job }} restarted {{ $value }} times in 15m"
+          description: >-
+            Repeated restarts with nothing in the application logs usually means
+            the kernel is killing it. Check the memory limit before the app code.
+
+  # ── Standing conditions (documented, not paged) ──────────────────────────
+  - name: edtech-slo-posture
+    interval: 1m
+    rules:
+      # The platform's own baseline exceeds a 99.9% availability objective. That
+      # is worth knowing and worth fixing, but it is a standing condition rather
+      # than an incident — so it is info-level and says so, instead of paging
+      # someone every 15 seconds about a number that has not changed.
+      - alert: BaselineExceedsAvailabilitySLO
+        expr: edtech:error_rate_baseline:job > 0.001
+        for: 30m
+        labels:
+          severity: info
+          class: posture
+        annotations:
+          summary: "{{ $labels.job }} baseline error ratio {{ $value | humanizePercentage }} exceeds the 99.9% SLO"
+          description: >-
+            This is the steady state, not a regression. Either the SLO is
+            aspirational or there is standing breakage worth a backlog item.
+            Regressions against this baseline are alerted separately.
+
+  # ── Business-level signals ────────────────────────────────────────────────
+  # Deliberately separate from the technical SLIs: the platform can be green
+  # while nobody is able to pay for a course.
+  - name: edtech-business
+    interval: 15s
+    rules:
+      - alert: CheckoutFailureRate
+        expr: |
+          (
+            sum(rate(payment_transactions_total{status!~"completed|succeeded"}[5m]))
+            /
+            clamp_min(sum(rate(payment_transactions_total[5m])), 0.001)
+          ) > 0.10
+        for: 1m
+        labels:
+          severity: critical
+          impact: revenue
+        annotations:
+          summary: "{{ $value | humanizePercentage }} of checkouts are failing"
+          description: >-
+            Learner-visible and revenue-impacting: the charge is declined and
+            enrolment does not happen. Check the payment provider before the
+            platform.
+
+      - alert: CertificatePipelineStalled
+        expr: |
+          (
+            sum(rate(tracking_events_total{event_type="lesson.completed"}[30m])) > 0
+            and
+            sum(increase(certificates_triggered_total[30m])) == 0
+          )
+        for: 30m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Lessons completed but no certificates issued in 30m"
+          description: >-
+            The completion -> certificate chain may be broken. Nothing errors;
+            learners simply never receive the reward for finishing a course.
+
+  # ── Chaos correlation ─────────────────────────────────────────────────────
+  - name: edtech-chaos
+    interval: 15s
+    rules:
+      # Informational. Its job is to sit beside the symptom alerts so an operator
+      # can tell an experiment from an incident at a glance — and so a symptom
+      # firing WITHOUT it stands out as something real.
+      - alert: ChaosExperimentActive
+        expr: chaos_scenario_active > 0
+        for: 0m
+        labels:
+          severity: info
+          class: chaos
+        annotations:
+          summary: "Chaos: {{ $labels.scenario }} active on {{ $labels.target }}"
+          description: >-
+            A {{ $labels.category }} experiment is running. Symptom alerts
+            alongside this are expected; symptom alerts without it are not.
+
+      - alert: ChaosLeftRunning
+        expr: chaos_scenario_active > 0
+        for: 30m
+        labels:
+          severity: warning
+          class: chaos
+        annotations:
+          summary: "Chaos scenario {{ $labels.scenario }} active for 30m"
+          description: "If unintended, clear it: curl -XPOST localhost:8090/reset"

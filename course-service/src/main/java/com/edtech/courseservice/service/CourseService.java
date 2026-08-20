@@ -3,6 +3,7 @@ package com.edtech.courseservice.service;
 import com.edtech.courseservice.model.Course;
 import com.edtech.courseservice.model.CourseProgress;
 import com.edtech.courseservice.model.Enrollment;
+import com.edtech.courseservice.repository.CourseProgressRepository;
 import com.edtech.courseservice.repository.CourseRepository;
 import com.edtech.courseservice.repository.EnrollmentRepository;
 import jakarta.persistence.EntityManager;
@@ -27,6 +28,7 @@ public class CourseService {
 
     private final CourseRepository courseRepository;
     private final EnrollmentRepository enrollmentRepository;
+    private final CourseProgressRepository courseProgressRepository;
     private final EntityManager entityManager;
 
     public Page<Course> listCourses(Course.CourseLevel level, Course.CourseStatus status, Pageable pageable) {
@@ -123,6 +125,62 @@ public class CourseService {
 
     public List<Enrollment> getUserEnrollments(UUID userId) {
         return enrollmentRepository.findByUserId(userId);
+    }
+
+    /**
+     * Marks a lesson complete for a user and recomputes their course progress.
+     *
+     * Idempotent: completing the same lesson twice keeps the original
+     * completedAt, so a double click cannot inflate progress or reset the date
+     * the streak calculation depends on.
+     *
+     * `totalLessons` is supplied by the caller because lessons live in
+     * content-service, not here. When it is absent or non-positive we still
+     * record the completion and simply leave the percentage alone rather than
+     * writing a bogus value.
+     */
+    @Transactional
+    public CourseProgress completeLesson(UUID courseId, UUID userId, UUID lessonId, Integer totalLessons) {
+        Enrollment enrollment = enrollmentRepository.findByUserIdAndCourseId(userId, courseId)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "You must be enrolled in this course to complete a lesson"));
+
+        CourseProgress progress = courseProgressRepository
+                .findByEnrollmentIdAndLessonId(enrollment.getId(), lessonId)
+                .orElseGet(() -> {
+                    CourseProgress created = new CourseProgress();
+                    created.setEnrollmentId(enrollment.getId());
+                    created.setLessonId(lessonId);
+                    return created;
+                });
+
+        if (progress.getCompletedAt() == null) {
+            progress.setCompletedAt(Instant.now());
+        }
+        CourseProgress saved = courseProgressRepository.save(progress);
+
+        if (totalLessons != null && totalLessons > 0) {
+            long completed = courseProgressRepository
+                    .countByEnrollmentIdAndCompletedAtIsNotNull(enrollment.getId());
+            int percent = (int) Math.min(100, Math.round((completed * 100.0) / totalLessons));
+            enrollment.setProgress(percent);
+            if (percent >= 100) {
+                enrollment.setStatus(Enrollment.EnrollmentStatus.COMPLETED);
+                if (enrollment.getCompletedAt() == null) {
+                    enrollment.setCompletedAt(Instant.now());
+                }
+            }
+            enrollmentRepository.save(enrollment);
+        }
+
+        return saved;
+    }
+
+    /** Completion records for a user's enrollment in a course (empty if not enrolled). */
+    public List<CourseProgress> getLessonProgress(UUID courseId, UUID userId) {
+        return enrollmentRepository.findByUserIdAndCourseId(userId, courseId)
+                .map(enrollment -> courseProgressRepository.findByEnrollmentId(enrollment.getId()))
+                .orElseGet(List::of);
     }
 
     public List<Course> getUserEnrolledCourses(UUID userId) {
